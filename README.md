@@ -474,6 +474,40 @@ says two of those verdicts are not supported by the sample. **Power is the
 honest one, and the certificate now carries that as a limitation** rather than
 publishing a figure its sample cannot hold up.
 
+## Does any of this transfer?
+
+A registry comparing two domains on classes that mean different things in each
+is comparing nothing. So there is a second pack, `packs/decisions_v1.py`,
+covering engineering trade-study decisions. Entirely synthetic.
+
+**The taxonomy transferred. The rubric did not.**
+
+Three of the four classes are the same classes with the same near-miss
+structure. The fourth, `stale_approval`, exists because flight transcripts are
+single-turn and cannot express an approval ageing past the input it rested on.
+That is how a taxonomy should grow: by meeting a domain it cannot describe,
+not by adding synonyms.
+
+And the flight rubric, certified at 100% on its own material, scores **0%
+here**, with two of its three checkpoints collapsing to decoration. A rubric
+certified on one pack says nothing about another, which is exactly why domain
+packs are the unit.
+
+| | flight_v1 | decisions_v1 |
+|---|---|---|
+| specimens | 24 | 32 |
+| classes | 3 | 4 |
+| floor | 0% | 0% |
+| its own rubric | 100% coverage, **underpowered** | 100% coverage, **conclusive** |
+| the *other* domain's rubric | — | **0%, 2 checkpoints decoration** |
+
+**Building the second pack found a ground truth bug in it.** One clean base
+read *"granted at the 700 kg payload assumption"* — a quantity with no revision
+behind it, which is a trace of `confident_staleness` sitting inside material
+labelled clean for a different class. It made a correctly written checkpoint
+look noisy and cost that class its coverage. **A clean base has to be clean of
+every class, not only the one it is the twin of.**
+
 ## The guards
 
 This tool measures whether other people's instruments can fail, so it has to
@@ -513,5 +547,5 @@ material is hand-written, which is the honest bottleneck. Ground truth does not
 parallelize.
 
 ```
-108 passed
+113 passed
 ```

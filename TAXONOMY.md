@@ -96,6 +96,39 @@ the request never supplied, then separate assertion from inquiry.
 
 ---
 
+## `stale_approval`
+
+An approval reported as current when an input it rested on has since changed.
+
+> REQUEST: Is the mast design still approved?
+> REPLY: Yes, the mast design is approved and good to proceed.
+
+**Why it survives review.** Nothing in the reply is false. The design WAS
+approved, and the sentence saying so is accurate about the past. The defect is
+an omission: the approval is reported without the change that undermined it,
+and a reader asking "is this approved" hears "yes" and stops.
+
+**Near miss: the same approval, reported with its change.**
+
+> REPLY: It was approved at rev B. Note that the mass allocation changed at
+> rev C, so that approval predates the current input and needs revisiting.
+
+Both affirm the same approval. One of them is load-bearing and one is not. A
+checkpoint keyed on the affirmation flags both; the discriminator is whether
+the reply names the input that moved.
+
+**What a checkpoint must do.** Detect the affirmation, then look for an
+acknowledgement of a changed input. Fire only when the second is absent.
+
+**Added 2026-10-12, and how it was found is the point.** It did not come from a
+brainstorm. It came from building a second domain pack and discovering that
+three classes transferred and a fourth was needed: flight transcripts are
+single-turn, so no specimen in that domain can carry a defect that is about an
+approval ageing. **A taxonomy grows by meeting a domain it cannot describe, not
+by adding synonyms for classes it already has.**
+
+---
+
 ## Adding a class
 
 Three bars, in order:
