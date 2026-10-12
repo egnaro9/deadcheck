@@ -33,10 +33,10 @@ def _repo(tmp_path):
     return r
 
 
-def _material(defect="a wholly different sentence", n=6):
+def _material(defect="a wholly different sentence", n=6, salt=""):
     bases, injs = [], []
     for i in range(n):
-        bid, clean = f"b{i}", f"REQUEST: q{i}?\nREPLY: an ordinary answer number {i}."
+        bid, clean = f"b{i}", f"REQUEST: q{i}{salt}?\nREPLY: an ordinary answer number {i}."
         bases.append(Base(bid, clean))
         injs.append(Injection(f"break{i}", ROT,
                               replace_in_reply(f"an ordinary answer number {i}.",
@@ -149,3 +149,26 @@ def test_the_residual_is_a_column_not_a_footnote(tmp_path):
     header = next(l for l in render_markdown(reg).splitlines()
                   if l.startswith("| rubric "))
     assert "residual" in header
+
+
+def test_an_underpowered_verdict_is_printed_as_unsupported(tmp_path):
+    """The certificate carries power as a limitation; the board must not drop
+    it. A row can read 100% and be unsupported, and hiding that is the exact
+    omission the board exists to show."""
+    repo = _repo(tmp_path)
+    # Three per class is underpowered by construction, but at n=3 a coin flip
+    # can also cover the class on luck, and certify correctly REFUSES that.
+    # Walk salts until the material is calibrated (floor 0) yet still small.
+    small = next(m for m in (_material(n=3, salt=f"s{k}") for k in range(40))
+                 if calibrate(m).floor == 0.0)
+    r = Rubric("r", [Checkpoint("cp", defect_classes(ROT),
+                                lambda t: "wholly different" in t, "d")])
+    root = repo / "certs"
+    d = root / "r"
+    certify(d, r, small, run(r, small), calibrate(small), repo=repo, cert_root=root)
+    reg = build([d])
+    assert reg.rows[0].coverage == 1.0
+    assert reg.rows[0].underpowered == (ROT,)
+    md = render_markdown(reg)
+    assert "**no**: rot" in md
+    assert "supported" in next(l for l in md.splitlines() if l.startswith("| rubric "))

@@ -49,6 +49,7 @@ class Row:
     evasion_rate: float | None    # None when no attack was run
     decoration: int
     uncalibrated: bool
+    underpowered: tuple[str, ...]   # classes whose verdict the sample cannot hold up
     path: str
 
     @property
@@ -145,6 +146,7 @@ def verify(cert_dir: pathlib.Path) -> tuple[Row | None, tuple[str, ...]]:
         evasion_rate=None if att is None else att["evasion_rate"],
         decoration=got["decoration"],
         uncalibrated=floor > 0,
+        underpowered=tuple(aj.get("power", {}).get("underpowered", ())),
         path=cert_dir.name,
     ), ()
 
@@ -178,7 +180,7 @@ def index_json(reg: Registry) -> dict:
              "earned": None if r.earned is None else round(r.earned, 4),
              "evasion_rate": r.evasion_rate, "decoration": r.decoration,
              "residual": list(r.residual), "uncalibrated": r.uncalibrated,
-             "path": r.path}
+             "underpowered": list(r.underpowered), "path": r.path}
             for r in reg.rows],
         "rejected": [{"path": x.path, "reasons": list(x.reasons)}
                      for x in reg.rejected],
@@ -201,17 +203,24 @@ def render_markdown(reg: Registry) -> str:
         "You do not have to trust this board. Each row links to a bundle any "
         "third party can verify offline.",
         "",
-        "| rubric | material | caught | floor | earned | evades | residual |",
-        "|---|---|--:|--:|--:|--:|---|",
+        "| rubric | material | caught | floor | earned | evades | residual | "
+        "supported |",
+        "|---|---|--:|--:|--:|--:|---|---|",
     ]
     for r in reg.rows:
         ev = "n/a" if r.evasion_rate is None else _pct(r.evasion_rate)
         earned = "n/a" if r.earned is None else _pct(r.earned)
         resid = ", ".join(r.residual) if r.residual else "none on this material"
         mark = " ⚠ UNCALIBRATED" if r.uncalibrated else ""
+        # A verdict the sample cannot hold up is printed AS SUCH. The number
+        # stays, because it is what was measured; the column beside it says
+        # whether the interval behind it clears the bar.
+        supported = ("yes" if not r.underpowered else
+                     "**no**: " + ", ".join(r.underpowered))
         out.append(f"| `{r.rubric_id}`{mark} | `{r.specimen_set_id}` "
                    f"({r.material_sha[:8]}) | {r.covered}/{r.classes} | "
-                   f"{_pct(r.floor)} | {earned} | {ev} | {resid} |")
+                   f"{_pct(r.floor)} | {earned} | {ev} | {resid} | "
+                   f"{supported} |")
 
     out += ["", "## Rejected", ""]
     if reg.rejected:
@@ -229,7 +238,10 @@ def render_markdown(reg: Registry) -> str:
             "on the same material, including a deterministic coin flip; a "
             "class chance can cover tests nothing. **Earned** is coverage with "
             "the floor subtracted out. **Residual** is what the rubric misses, "
-            "and it is a column rather than a footnote on purpose."]
+            "and it is a column rather than a footnote on purpose. "
+            "**Supported** says whether each verdict's 95% interval clears "
+            "the bar at this sample size; a row can read 100% and still be "
+            "unsupported, and the board says so rather than hiding it."]
     return "\n".join(out) + "\n"
 
 
