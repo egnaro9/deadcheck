@@ -717,6 +717,13 @@ parallelize, and is the part that takes real time to build.
 **Nothing derived from paid client work goes into a public pack, ever, without
 that client's written permission.**
 
+## Break it
+
+The claim is that this certifies a rubric can fail. The honest way to trust
+that is to make it certify something false. [BREAKING.md](BREAKING.md) lists
+four targets, in the order I would try them. A reproducible script in an issue
+is a finding, and a finding gets a test named after it.
+
 ## Status
 
 **185 tests.** Early. The assay and the flip analysis are real and tested; the specimen
