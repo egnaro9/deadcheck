@@ -191,14 +191,27 @@ def calibrate(specimens: SpecimenSet,
     )
 
 
-def earned(assay_coverage: float, cal: Calibration) -> float:
+def earned(assay, cal: Calibration) -> float:
     """A coverage number with the floor subtracted out, rescaled.
 
     0.0 means the rubric did no better than the best naive probe; 1.0 means it
     reached everything naive rubrics could not. This is the number worth
-    publishing, and it is meaningless without the calibration beside it, which
-    is why it takes one as an argument rather than a float.
+    publishing, and it is meaningless without the calibration beside it.
+
+    Pass the Assay, not its coverage. A floor measured on other material says
+    nothing about this score, and only the Assay carries the specimen set id
+    that lets this function refuse the mismatch. A bare float is accepted for
+    callers that have already checked, and is on them.
     """
+    if hasattr(assay, "specimen_set_id"):
+        if assay.specimen_set_id != cal.specimen_set_id:
+            raise AssayError(
+                f"calibration is for {cal.specimen_set_id!r}, the assay is for "
+                f"{assay.specimen_set_id!r}. Subtracting a floor measured on "
+                "other material produces a number that means nothing.")
+        assay_coverage = assay.coverage
+    else:
+        assay_coverage = float(assay)
     if cal.floor >= 1.0:
         raise AssayError(
             f"specimen set {cal.specimen_set_id!r} has a floor of 100%: a naive "

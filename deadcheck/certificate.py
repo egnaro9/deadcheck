@@ -149,6 +149,7 @@ def assay_json(rubric: Rubric, specimens: SpecimenSet, assay: Assay,
             {"defect_class": c.defect_class, "n_specimens": c.n_specimens,
              "covered": c.covered, "claimed": c.claimed,
              "best_separation": round(c.best_separation, 4),
+             "best_hits": c.best_hits,
              "covering_checkpoints": list(c.covering_checkpoints)}
             for c in assay.classes],
         "checkpoints": [
@@ -370,6 +371,14 @@ def render(aj: dict) -> str:
         out.append("- **undeclared**: " + ", ".join(aj["undeclared_classes"]))
     if aj["unmeasured_targets"]:
         out.append("- **unmeasured**: " + ", ".join(aj["unmeasured_targets"]))
+    pw = aj.get("power", {})
+    if pw.get("underpowered"):
+        out += ["", "## Verdicts this sample cannot support", "",
+                "The 95% interval on the detection rate still admits the "
+                "opposite conclusion for: **" + ", ".join(pw["underpowered"])
+                + "**. Those rows are directional, not established. The "
+                "manifest carries the same limitation; this page must not "
+                "read cleaner than the bundle behind it."]
     if aj["attack"]:
         out += ["", "## Evasion", "",
                 f"Of {aj['attack']['n_caught']} defects this rubric catches, "

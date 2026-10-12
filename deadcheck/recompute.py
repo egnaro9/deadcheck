@@ -46,6 +46,11 @@ def recompute(aj: dict) -> list[str]:
 
     for c in aj.get("checkpoints", []):
         cid = c["checkpoint_id"]
+        for label in ("detection", "false_alarms", "off_target"):
+            pair = c.get(label)
+            if pair and (pair[0] < 0 or pair[1] < 0 or pair[0] > pair[1]):
+                bad.append(f"checkpoint {cid}: {label} records {pair[0]} of "
+                           f"{pair[1]}, which is not a count")
         want = _rate(c["detection"]) - _rate(c["false_alarms"])
         if abs(want - c["separation"]) > TOL:
             bad.append(f"checkpoint {cid}: separation recorded "
@@ -71,6 +76,12 @@ def recompute(aj: dict) -> list[str]:
         if c["covered"] and not c["claimed"]:
             bad.append(f"class {c['defect_class']}: covered but claimed by no "
                        "checkpoint")
+        if c["covered"] and c.get("best_hits", 1) == 0:
+            bad.append(f"class {c['defect_class']}: covered with zero "
+                       "detections, which no policy can produce")
+        if "best_hits" in c and c["best_hits"] > c["n_specimens"]:
+            bad.append(f"class {c['defect_class']}: best_hits {c['best_hits']} "
+                       f"exceeds n_specimens {c['n_specimens']}")
 
     cal = aj.get("calibration")
     if cal:
@@ -131,6 +142,11 @@ def check(target: pathlib.Path) -> tuple[int, str]:
             bad.append(f"vac.json unreadable: {exc}")
 
     n = len(aj.get("classes", []))
+    if n == 0 and not bad:
+        # "consistent — 0/0" is vacuously true and reads as a pass. A bundle
+        # with no classes measured nothing, and the exit code has to say so.
+        return 1, (f"EMPTY — {art.name} records zero defect classes. Nothing "
+                   "was measured, so nothing can be consistent.")
     if bad:
         lines = [f"INCONSISTENT — {len(bad)} discrepanc"
                  f"{'y' if len(bad) == 1 else 'ies'} in {art.name}"]

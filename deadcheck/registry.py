@@ -97,8 +97,16 @@ def verify(cert_dir: pathlib.Path) -> tuple[Row | None, tuple[str, ...]]:
         reasons.append(f"vac_version {man.get('vac_version')!r}, expected '0.2'")
 
     # RE-HASH: a bundle edited after issue must fail here.
+    root = cert_dir.resolve()
     for e in man.get("evidence", []):
         p = cert_dir / e["path"]
+        # "Closed evidence" means closed. A path that resolves outside the
+        # bundle is a manifest vouching for bytes it does not contain, and
+        # hashing them anyway would accept a bundle whose evidence can be
+        # swapped out from under it without touching the bundle.
+        if not p.resolve().is_relative_to(root):
+            reasons.append(f"evidence path escapes the bundle: {e['path']}")
+            continue
         if not p.exists():
             reasons.append(f"evidence missing: {e['path']}")
         elif hashlib.sha256(p.read_bytes()).hexdigest() != e["sha256"]:
@@ -114,10 +122,22 @@ def verify(cert_dir: pathlib.Path) -> tuple[Row | None, tuple[str, ...]]:
         got = _recomputed(aj)
     except (KeyError, TypeError) as exc:
         return None, (f"{ARTIFACT} does not have the expected shape: {exc!r}",)
+    if got["classes"] == 0:
+        # 0/0 recomputes as consistent, every hash can match, and the row
+        # would list with every column empty, which reads as a clean sheet.
+        # Refuse here, but KEEP what the evidence pass already found: an
+        # early return that drops collected reasons hid a path-escape behind
+        # this message the first time it ran.
+        return None, (*reasons, "bundle measured nothing: zero defect classes")
     checks = man.get("results", {}).get("checks", [])
     if not checks:
         reasons.append("no checks: nothing in this bundle is verifiable")
     for chk in checks:
+        art = chk.get("artifact", "")
+        if art.split(".")[0] != SCOPE:
+            reasons.append(f"check.artifact {art!r} is not the artifact the "
+                           f"summary scopes ({SCOPE!r}); the headline would "
+                           "bind to evidence nobody recomputed")
         for k, v in chk.get("expect", {}).items():
             if k not in got:
                 reasons.append(f"expect.{k} is not a recomputable field")
@@ -133,7 +153,7 @@ def verify(cert_dir: pathlib.Path) -> tuple[Row | None, tuple[str, ...]]:
 
     cal = aj["calibration"]
     floor = cal["floor"]
-    cov = got["covered"] / got["classes"] if got["classes"] else 0.0
+    cov = got["covered"] / got["classes"]
     att = aj.get("attack")
     return Row(
         rubric_id=aj["rubric_id"],
@@ -143,7 +163,11 @@ def verify(cert_dir: pathlib.Path) -> tuple[Row | None, tuple[str, ...]]:
         residual=tuple(aj["residual"]),
         floor=floor, difficulty=cal["difficulty"],
         earned=None if floor >= 1 else max(0.0, (cov - floor) / (1 - floor)),
-        evasion_rate=None if att is None else att["evasion_rate"],
+        # A rubric that caught nothing cannot be evaded, and printing its 0%
+        # beside a real 0% ranks a blind rubric as unbreakable. None here
+        # renders as "n/a", and the reason travels with it below.
+        evasion_rate=(None if att is None or not att.get("n_caught")
+                      else att["evasion_rate"]),
         decoration=got["decoration"],
         uncalibrated=floor > 0,
         underpowered=tuple(aj.get("power", {}).get("underpowered", ())),
@@ -157,6 +181,15 @@ def build(cert_dirs: list[pathlib.Path]) -> Registry:
         raise AssayError(
             "an empty registry would publish a 100% acceptance rate over zero "
             "submissions. Pass certificate directories.")
+    seen: dict[pathlib.Path, str] = {}
+    for d in cert_dirs:
+        key = d.resolve()
+        if key in seen:
+            raise AssayError(
+                f"{d} was passed twice. A board listing one bundle as two rows "
+                "double-counts it, and an acceptance rate over duplicates is "
+                "not a rate.")
+        seen[key] = d.name
     rows, rejected = [], []
     for d in sorted(cert_dirs, key=lambda p: p.name):
         row, reasons = verify(d)
@@ -208,7 +241,8 @@ def render_markdown(reg: Registry) -> str:
         "|---|---|--:|--:|--:|--:|---|---|",
     ]
     for r in reg.rows:
-        ev = "n/a" if r.evasion_rate is None else _pct(r.evasion_rate)
+        ev = ("n/a, caught nothing" if r.evasion_rate is None and r.covered == 0
+              else "n/a" if r.evasion_rate is None else _pct(r.evasion_rate))
         earned = "n/a" if r.earned is None else _pct(r.earned)
         resid = ", ".join(r.residual) if r.residual else "none on this material"
         mark = " ⚠ UNCALIBRATED" if r.uncalibrated else ""

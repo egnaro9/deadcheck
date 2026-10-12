@@ -39,6 +39,8 @@ from .model import AssayError, Checkpoint, Specimen, SpecimenSet
 # 0.8 is the conventional "substantial agreement" line in the psychometrics
 # literature; it is a convention, not a law, which is why it is an argument.
 SUBSTANTIAL = 0.8
+# Fewer shared specimens than this and kappa is a coin toss read as a result.
+MIN_SHARED = 2
 
 
 @dataclass(frozen=True)
@@ -169,7 +171,19 @@ def agree(checkpoint: Checkpoint, specimens: SpecimenSet,
 
     by_rater: dict[str, dict[str, bool]] = {}
     for r in mine:
-        by_rater.setdefault(r.rater_id, {})[r.specimen_id] = r.fired
+        slot = by_rater.setdefault(r.rater_id, {})
+        if r.specimen_id in slot:
+            # A dict write would keep whichever came last and say nothing. Two
+            # ratings for one specimen is a data-entry fault, and if they
+            # disagree the "agreement" below would be measured against a coin
+            # toss over which one survived.
+            raise AssayError(
+                f"rater {r.rater_id!r} rated specimen {r.specimen_id!r} more "
+                "than once for this checkpoint"
+                + (" with CONTRADICTORY verdicts" if slot[r.specimen_id] != r.fired
+                   else "")
+                + ". Resolve the duplicate before measuring agreement.")
+        slot[r.specimen_id] = r.fired
     raters = tuple(sorted(by_rater))
     if len(raters) < 2:
         raise AssayError(
@@ -180,10 +194,12 @@ def agree(checkpoint: Checkpoint, specimens: SpecimenSet,
     # Only specimens EVERY rater covered. Comparing different subsets would let
     # a rater who skipped the hard ones raise the score.
     shared = sorted(set.intersection(*(set(v) for v in by_rater.values())))
-    if not shared:
+    if len(shared) < MIN_SHARED:
         raise AssayError(
-            f"checkpoint {checkpoint.id!r}: no specimen was rated by every "
-            "rater, so there is nothing to compare.")
+            f"checkpoint {checkpoint.id!r}: only {len(shared)} specimen(s) "
+            f"rated by every rater, and agreement needs at least "
+            f"{MIN_SHARED}. Over one specimen every pair either agrees or "
+            "does not, and a verdict from that is a coin read as a result.")
 
     vectors = {rid: [by_rater[rid][s] for s in shared] for rid in raters}
     constant = tuple(r for r in raters if len(set(vectors[r])) == 1)

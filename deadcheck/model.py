@@ -52,6 +52,11 @@ class Specimen:
     def __post_init__(self) -> None:
         _check_id("specimen", self.id)
         object.__setattr__(self, "defects", frozenset(self.defects))
+        # Same rule as Checkpoint.targets. Without it a specimen can carry a
+        # class no checkpoint is ALLOWED to declare, so it lands in the
+        # residual forever with no way to ever cover it.
+        for d in self.defects:
+            _check_id("defect class", d)
         if not self.transcript.strip():
             raise AssayError(f"specimen {self.id!r} has an empty transcript")
 

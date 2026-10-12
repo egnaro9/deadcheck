@@ -175,6 +175,12 @@ def attack(rubric: Rubric, specimens: SpecimenSet,
             "ever written. Pass evasions.")
     if max_combined < 1:
         raise AssayError("max_combined must be at least 1")
+    ids = [e.id for e in evasions]
+    dups = sorted({i for i in ids if ids.count(i) > 1})
+    if dups:
+        raise AssayError(
+            f"evasion ids are not unique: {dups}. The report names evasions "
+            "by id, so a duplicate makes 'slips past via X' ambiguous.")
 
     defective = [s for s in specimens.specimens if s.defects]
     caught: list[tuple[Specimen, tuple[str, ...]]] = []
@@ -187,6 +193,14 @@ def attack(rubric: Rubric, specimens: SpecimenSet,
         else:
             uncaught += 1
 
+    # A mutated transcript that is byte-identical to a DIFFERENT specimen has
+    # that specimen's defects, not the original's, by the pack's own ground
+    # truth. If the match is clean, the "evasion" deleted the defect and is a
+    # repair. Declared preservation does not override a label the material
+    # already carries. Found by a constructed probe: an evasion rewriting the
+    # defect into the clean twin's wording was counted as a win.
+    by_text = {sp.transcript: sp for sp in specimens.specimens}
+
     evaded: list[Evaded] = []
     ceiling = min(max_combined, len(evasions))
     for s, firing in caught:
@@ -197,10 +211,17 @@ def attack(rubric: Rubric, specimens: SpecimenSet,
                 text = s.transcript
                 for e in combo:
                     text = e.apply(text)
+                    if not isinstance(text, str):
+                        raise AssayError(
+                            f"evasion {e.id!r} returned {type(text).__name__}, "
+                            "not a transcript. It cannot have hidden anything.")
                 if text == s.transcript:
                     # A combination that changes nothing cannot be an evasion,
                     # and silently counting it would be a free win.
                     continue
+                twin = by_text.get(text)
+                if twin is not None and twin.defects != s.defects:
+                    continue   # landed on material labelled otherwise: a repair
                 mutated = Specimen(s.id, text, s.defects, s.note)
                 still = [c.id for c in rubric.checkpoints
                          if c.targets & s.defects and c.fires(mutated)]

@@ -123,6 +123,11 @@ class Pack:
             # cannot fire is the thing this package is named after.
             for b in targets:
                 out = inj.apply(b.transcript)
+                if not isinstance(out, str):
+                    raise AssayError(
+                        f"injection {inj.id!r} returned "
+                        f"{type(out).__name__}, not a transcript. A transform "
+                        "that returns nothing has not produced a specimen.")
                 if out == b.transcript:
                     # THE one that must never pass. A no-op injection makes the
                     # ground truth false and every rubric score perfectly
@@ -140,6 +145,22 @@ class Pack:
                     f"{b.id}__{inj.id}", out,
                     frozenset({inj.defect_class}),
                     note=f"generated: base={b.id} injection={inj.id}"))
+
+        # Two specimens with the same bytes and different labels is
+        # CONTRADICTORY ground truth, and the same bytes with the same label
+        # is a count inflated by one. Neither is caught by the per-base no-op
+        # check above, because an injection on b1 can land exactly on b2's
+        # clean text. Found by a constructed probe, not by any test.
+        seen: dict[str, str] = {}
+        for s in specimens:
+            if s.transcript in seen:
+                raise AssayError(
+                    f"specimens {seen[s.transcript]!r} and {s.id!r} are "
+                    "byte-identical. If their labels differ the ground truth "
+                    "contradicts itself; if they match, one of them is a "
+                    "duplicate inflating the count. Either way the pack cannot "
+                    "be measured against.")
+            seen[s.transcript] = s.id
 
         # Likewise no "declared classes all present" check: every injection
         # emits at least one specimen carrying its own class, so it could only

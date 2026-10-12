@@ -73,6 +73,7 @@ class ClassResult:
     claimed: bool                       # some checkpoint declares this class
     covering_checkpoints: tuple[str, ...]
     best_separation: float
+    best_hits: int                      # detections by the best-separating claimer
     missed_specimens: tuple[str, ...]
     """Specimens carrying this class that NO CLAIMING checkpoint fired on.
 
@@ -153,7 +154,7 @@ def run(rubric: Rubric, specimens: SpecimenSet,
         carriers = specimens.carrying(defect)
         claimers = [c for c in rubric.checkpoints if defect in c.targets]
 
-        covering, best = [], 0.0
+        covering, best, best_hits = [], 0.0, 0
         for c in claimers:
             r = by_id[c.id]
             # Detection is measured against THIS class, not against the union of
@@ -162,7 +163,8 @@ def run(rubric: Rubric, specimens: SpecimenSet,
             hits = sum(fired[(c.id, s.id)] for s in carriers)
             rate = hits / len(carriers) if carriers else 0.0
             sep = rate - r.false_alarm_rate
-            best = max(best, sep)
+            if sep > best or (sep == best and hits > best_hits):
+                best, best_hits = sep, hits
             if sep >= policy.min_separation and r.false_alarm_rate <= policy.max_false_alarm_rate:
                 covering.append(c.id)
 
@@ -175,6 +177,7 @@ def run(rubric: Rubric, specimens: SpecimenSet,
             claimed=bool(claimers),
             covering_checkpoints=tuple(sorted(covering)),
             best_separation=best,
+            best_hits=best_hits,
             missed_specimens=missed,
         ))
 

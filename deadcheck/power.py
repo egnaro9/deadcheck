@@ -126,13 +126,14 @@ def power(assay: Assay, policy: CoveragePolicy | None = None) -> PowerReport:
     policy = policy or assay.policy
     rows = []
     for c in assay.classes:
-        # best_separation is detection minus false alarms; with zero false
-        # alarms (what the default policy requires) it IS the detection rate,
-        # so recover the hit count from it rather than inventing one.
-        hits = round(max(0.0, c.best_separation) * c.n_specimens)
-        lo, hi = wilson(hits, c.n_specimens)
-        rows.append(ClassPower(c.defect_class, c.n_specimens, hits, lo, hi,
-                               c.covered, policy.min_separation))
+        # The REAL hit count, carried through from the assay. An earlier version
+        # reconstructed it from best_separation, which subtracts false alarms,
+        # so any checkpoint that false-alarmed had its detections understated
+        # and its interval pushed down: 4/4 read as 2/4 with a 50% false-alarm
+        # rate. A value derived from another derived value agrees with itself.
+        lo, hi = wilson(c.best_hits, c.n_specimens)
+        rows.append(ClassPower(c.defect_class, c.n_specimens, c.best_hits,
+                               lo, hi, c.covered, policy.min_separation))
     return PowerReport(assay.specimen_set_id, policy.min_separation,
                        tuple(rows))
 

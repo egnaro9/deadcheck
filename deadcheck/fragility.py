@@ -31,13 +31,29 @@ def no_checkpoint_fired(fired: frozenset[str]) -> bool:
     return not fired
 
 
+class _Blocking:
+    """Only the named checkpoints block. Everything else is advisory.
+
+    A class rather than a closure so what_flips can SEE the names. A blocking
+    rule that names a checkpoint the rubric does not have never blocks
+    anything, every verdict STANDS, and the report says "nothing reverses it"
+    with exhaustive=True. That is a config typo reading as a clean bill of
+    health, and it was found by a constructed probe.
+    """
+
+    def __init__(self, ids: tuple[str, ...]) -> None:
+        if not ids:
+            raise AssayError("blocking() with no ids blocks nothing, so every "
+                             "verdict stands by construction")
+        self.blockers = frozenset(ids)
+
+    def __call__(self, fired: frozenset[str]) -> bool:
+        return not (fired & self.blockers)
+
+
 def blocking(*ids: str) -> DecisionRule:
     """Only these checkpoints block. Everything else is advisory."""
-    blockers = frozenset(ids)
-
-    def rule(fired: frozenset[str]) -> bool:
-        return not (fired & blockers)
-    return rule
+    return _Blocking(ids)
 
 
 def at_most(n: int) -> DecisionRule:
@@ -99,6 +115,12 @@ def what_flips(rubric: Rubric, specimen: Specimen,
         raise AssayError("max_size must be at least 1")
 
     ids = [c.id for c in rubric.checkpoints]
+    unknown = getattr(rule, "blockers", frozenset()) - set(ids)
+    if unknown:
+        raise AssayError(
+            f"blocking rule names {sorted(unknown)}, which rubric "
+            f"{rubric.id!r} does not have. Nothing would ever block, so every "
+            "verdict would stand and the report would call that exhaustive.")
     try:
         fired = frozenset(c.id for c in rubric.checkpoints if c.fires(specimen))
     except Exception as exc:                                     # noqa: BLE001

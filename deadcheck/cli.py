@@ -57,6 +57,10 @@ def load(spec: str) -> Any:
 def _material(spec: str):
     """A --pack may name a Pack or an already-built SpecimenSet."""
     obj = load(spec)
+    if isinstance(obj, type):
+        raise AssayError(
+            f"{spec!r} names the class {obj.__name__}, not an instance of it. "
+            "A pack spec points at a built object, e.g. packs.flight_v1:FLIGHT_V1")
     return obj.build() if hasattr(obj, "build") else obj
 
 
@@ -76,16 +80,26 @@ def _cmd_assay(args) -> int:
     print(markdown(a))
     cal = calibrate(mat)
     print(f"\nFloor {cal.floor:.0%} (best naive probe: {cal.best_probe}). "
-          + (f"Earned {earned(a.coverage, cal):.0%}." if cal.floor < 1 else
+          + (f"Earned {earned(a, cal):.0%}." if cal.floor < 1 else
              "Earned is undefined: the floor is 100%."))
     return 0
 
 
 def _cmd_attack(args) -> int:
     from .adversary import GENERIC_EVASIONS, attack
+    from .adversary import Evasion
     evasions = GENERIC_EVASIONS
     if args.evasions:
-        evasions = evasions + tuple(load(args.evasions))
+        extra = load(args.evasions)
+        try:
+            extra = tuple(extra)
+        except TypeError:
+            extra = ()
+        if not extra or not all(isinstance(e, Evasion) for e in extra):
+            raise AssayError(
+                f"{args.evasions!r} does not name a sequence of Evasion "
+                "objects, e.g. packs.flight_v1:EVASIONS")
+        evasions = evasions + extra
     rep = attack(load(args.rubric), _material(args.pack), evasions,
                  max_combined=args.max_combined)
     print(rep.summary())

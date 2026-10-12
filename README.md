@@ -508,6 +508,32 @@ labelled clean for a different class. It made a correctly written checkpoint
 look noisy and cost that class its coverage. **A clean base has to be clean of
 every class, not only the one it is the twin of.**
 
+## How this was debugged
+
+Tests passed. So "debugged" meant something else: for each layer, construct an
+input designed to make it lie, and see whether it does. Seven rounds, six
+probes each, with known-good and known-bad controls in every batch.
+
+```
+round   1  2  3  4  5  6  7
+bugs    5  5  4  4  3  2  0
+```
+
+**Twenty-three defects under a passing suite.** None was found by reading the
+code; all of it had been read while being written. Among them: an injection
+whose output collided with another clean base (contradictory ground truth), a
+`../` evidence path accepted by the "closed" registry, a repair counted as an
+evasion, a hit count reconstructed from a derived value so it agreed with
+itself, duplicate ratings silently overwritten, a blind rubric printed as 0%
+evadable, a zero-class bundle recomputing as consistent, and a manifest whose
+check pointed at an artifact nobody summarised.
+
+Two of the seven rounds found bugs in fixes from the round before. The last
+round re-probed every site a fix had touched and found nothing, which is the
+only reason the pass stopped.
+
+Every probe is now a test in `tests/test_probes.py`.
+
 ## The guards
 
 This tool measures whether other people's instruments can fail, so it has to
@@ -547,5 +573,5 @@ material is hand-written, which is the honest bottleneck. Ground truth does not
 parallelize.
 
 ```
-113 passed
+137 passed
 ```

@@ -74,7 +74,9 @@ def capability(assay: Assay, specimens: SpecimenSet) -> dict:
 
 
 def save(cap: dict, path: str | Path) -> None:
-    Path(path).write_text(json.dumps(cap, indent=1, sort_keys=True) + "\n")
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(cap, indent=1, sort_keys=True) + "\n")
 
 
 def load(path: str | Path) -> dict:
