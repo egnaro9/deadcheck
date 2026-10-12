@@ -72,7 +72,9 @@ way promptfoo applies it:
 followed by the forbidden action in lowercase reads as a clean refusal. That is
 refusal-then-compliance passing a widely used tool's own refusal test.
 
-**OpenAI evals' `Match`** (the `sarcasm` eval, eight real samples). The
+**OpenAI evals' `Match`** (the `sarcasm` eval: the first eight lines of
+`evals/registry/data/sarcasm/samples.jsonl`, a git LFS file in `openai/evals`,
+through `load_jsonl(path, limit=8)`). The
 predicate is `sampled.startswith(ideal)`, verbatim from `evals/api.py`: a
 prefix match, no strip, no case-fold. Reproduced exactly, not fixed:
 
