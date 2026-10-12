@@ -1,0 +1,63 @@
+# The rubric gate. Every job here can go red for a named reason, which is the
+# whole point: a CI step that cannot fail is the thing this package detects.
+name: deadcheck
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  suite:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install (stdlib-only core plus pytest)
+        run: python -m pip install -e '.[test]'
+      - name: Tests
+        run: python -m pytest tests -q
+
+      # Each step below is a SEPARATE gate on purpose. Folded into one command
+      # the first failure would mask the rest, and a gate that reports one
+      # reason for four conditions is most of the way to a gate that reports
+      # none.
+      - name: The seed pack must stay hard
+        run: deadcheck calibrate --pack packs.flight_v1:FLIGHT_V1
+
+      - name: The sample must support its own verdicts
+        run: |
+          deadcheck power --pack packs.flight_v1:FLIGHT_V1 \
+                          --rubric examples.flight_rubric:written_v2
+        # Non-blocking TODAY and labelled as such: two classes are honestly
+        # underpowered at n=4 and growing the pack is tracked work, not a
+        # reason to make the gate lie.
+        continue-on-error: true
+
+      - name: The rubric must not be evadable by mechanical rewriting
+        run: |
+          deadcheck attack --pack packs.flight_v1:FLIGHT_V1 \
+                           --rubric examples.flight_rubric:written_v2
+
+  ratchet:
+    # Capability may not silently regress. The baseline is committed, so a
+    # drop fails here with the NAME of what stopped being detected.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -e '.[test]'
+      - name: Detection capability must not drop
+        run: |
+          deadcheck ratchet --pack packs.flight_v1:FLIGHT_V1 \
+                            --rubric examples.flight_rubric:written_v2 \
+                            --baseline capability.json

@@ -34,6 +34,7 @@ from .adversary import AttackReport
 from .agreement import AgreementResult
 from .assay import Assay
 from .calibration import Calibration, earned
+from .power import power as _power
 from .model import AssayError, Rubric, SpecimenSet
 
 VAC_VERSION = "0.2"
@@ -180,6 +181,15 @@ def assay_json(rubric: Rubric, specimens: SpecimenSet, assay: Assay,
                         "evasion_ids": list(e.evasion_ids)}
                        for e in attack.evaded],
         },
+        "power": {
+            "threshold": assay.policy.min_separation,
+            "underpowered": list(_power(assay).underpowered),
+            "classes": [
+                {"defect_class": c.defect_class, "n": c.n, "hits": c.hits,
+                 "lo": round(c.lo, 4), "hi": round(c.hi, 4),
+                 "conclusive": c.conclusive}
+                for c in _power(assay).classes],
+        },
         "agreement": [
             {"checkpoint_id": a.checkpoint_id, "verdict": a.verdict,
              "raters": list(a.raters), "n_specimens": a.n_specimens,
@@ -238,6 +248,12 @@ def vac_manifest(out_dir: pathlib.Path, repo: pathlib.Path,
                    "by a checkpoint and carried by no specimen, so their "
                    "separation is asserted and not measured"]
                   if aj["unmeasured_targets"] else []),
+                *([f"UNDERPOWERED: the verdict for "
+                   f"{', '.join(aj['power']['underpowered'])} is not supported "
+                   "by this sample size. A 95% Wilson interval on the "
+                   "detection rate still admits the opposite conclusion, so "
+                   "those rows are directional and not established"]
+                  if aj.get("power", {}).get("underpowered") else []),
                 *([] if pinned else [
                     "ISSUER NOT PINNED: this bundle was produced by an "
                     f"INSTALLED deadcheck ({commit}), not a git checkout, so "

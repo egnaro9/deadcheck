@@ -107,8 +107,12 @@ def test_a_missing_attribute_is_named(capsys):
 
 
 def test_load_accepts_a_built_specimen_set_as_well_as_a_pack():
+    from packs.flight_v1 import FLIGHT_V1
+
     from deadcheck.cli import _material
-    assert len(_material(PACK).specimens) == 18
+    built = _material(PACK)
+    assert len(built.specimens) == len(FLIGHT_V1.bases) + len(FLIGHT_V1.injections)
+    assert len(built.clean) == len(FLIGHT_V1.bases)
 
 
 def test_the_console_entry_point_is_wired():

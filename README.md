@@ -439,6 +439,41 @@ INCONSISTENT — 3 discrepancies in assay.json
 An empty invocation exits 2 rather than 0, because a misconfigured CI step
 exiting 0 would read as a passing verification.
 
+## Is there enough material?
+
+Calibration asks whether the material is hard. This asks whether there is
+**enough** of it, and the two are different questions.
+
+```
+deadcheck power --pack packs.flight_v1:FLIGHT_V1 --rubric examples.flight_rubric:written_v2
+```
+
+```
+POWER · flight_v1 · UNDERPOWERED
+  95% Wilson intervals against a 0.50 bar
+    confident_staleness          4/4 [0.51, 1.00]
+    refusal_then_compliance      3/4 [0.30, 0.95]  <- inconclusive
+    wrong_versus_absent          3/4 [0.30, 0.95]  <- inconclusive
+```
+
+A detection rate is a binomial proportion, so it comes with an interval. **At
+n = 3, a perfect 3-of-3 gives [0.44, 1.00]** — consistent with a true detection
+rate of 44%. And 2-of-3 gives [0.21, 0.94]. Those overlap across almost their
+whole range, so a board printing 2/3 and 3/3 as different numbers is reporting
+noise as a ranking.
+
+Wilson, not the normal approximation, on purpose: the normal interval for 3-of-3
+is [1.00, 1.00], which is not a narrow interval but a false one. **A confidence
+interval that cannot express doubt is the same failure as a check that cannot
+fail**, and there is a test asserting this one disagrees with it.
+
+**This layer indicted the seed pack in this repo on its first run.** Every class
+was inconclusive at three specimens, so the pack grew to four. And it still
+disagrees with coverage: the assay says all three classes are covered, power
+says two of those verdicts are not supported by the sample. **Power is the
+honest one, and the certificate now carries that as a limitation** rather than
+publishing a figure its sample cannot hold up.
+
 ## The guards
 
 This tool measures whether other people's instruments can fail, so it has to
@@ -478,5 +513,5 @@ material is hand-written, which is the honest bottleneck. Ground truth does not
 parallelize.
 
 ```
-99 passed
+108 passed
 ```

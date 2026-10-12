@@ -111,5 +111,11 @@ def test_the_public_pack_stays_hard():
     cal = calibrate(FLIGHT_V1.build())
     assert cal.floor == 0.0, cal.summary()
     assert cal.cheap_classes == (), cal.summary()
-    assert cal.n_specimens == 18 and cal.n_clean == 9
     assert len(cal.classes) == 3
+    # Assert the REQUIREMENT, not the count: deadcheck.power says a perfect
+    # score needs n >= 4 per class to clear the 0.50 bar at its lower bound,
+    # and the pack grew from 3 to 4 for exactly that reason.
+    from collections import Counter
+    per_class = Counter(c for s in FLIGHT_V1.build().specimens for c in s.defects)
+    assert min(per_class.values()) >= 4, per_class
+    assert cal.n_clean == len(FLIGHT_V1.bases)

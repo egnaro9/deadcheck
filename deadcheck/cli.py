@@ -4,6 +4,8 @@
     deadcheck assay      --pack P --rubric examples.flight_rubric:written_v2
     deadcheck attack     --pack P --rubric R [--evasions packs.flight_v1:EVASIONS]
     deadcheck certify    --pack P --rubric R --out DIR
+    deadcheck power      --pack P --rubric R
+    deadcheck ratchet    --pack P --rubric R --baseline capability.json
     deadcheck recompute  DIR
     deadcheck registry   DIR [DIR ...]
 
@@ -109,6 +111,30 @@ def _cmd_certify(args) -> int:
     return 0
 
 
+def _cmd_power(args) -> int:
+    from .assay import run
+    from .power import power
+    mat = _material(args.pack)
+    rep = power(run(load(args.rubric), mat))
+    print(rep.summary())
+    return 0 if rep.ok else 1
+
+
+def _cmd_ratchet(args) -> int:
+    from .assay import run
+    from .ratchet import capability, compare, load as load_baseline, save
+    mat = _material(args.pack)
+    rubric = load(args.rubric)
+    a = run(rubric, mat)
+    if args.write:
+        save(capability(a, mat), args.baseline)
+        print(f"wrote baseline {args.baseline}")
+        return 0
+    rep = compare(load_baseline(args.baseline), a, mat)
+    print(rep.summary())
+    return 0 if rep.ok else 1
+
+
 def _cmd_recompute(args) -> int:
     from .recompute import main as rmain
     return rmain(args.paths)
@@ -161,6 +187,17 @@ def build_parser() -> argparse.ArgumentParser:
     y.add_argument("--allow-uncalibrated", action="store_true",
                    dest="allow_uncalibrated")
     y.set_defaults(fn=_cmd_certify)
+
+    w = sub.add_parser("power", help="can the sample support its verdicts")
+    pack(w), rubric(w)
+    w.set_defaults(fn=_cmd_power)
+
+    h = sub.add_parser("ratchet", help="capability must not silently regress")
+    pack(h), rubric(h)
+    h.add_argument("--baseline", required=True)
+    h.add_argument("--write", action="store_true",
+                   help="write the baseline instead of comparing against it")
+    h.set_defaults(fn=_cmd_ratchet)
 
     r = sub.add_parser("recompute", help="re-derive a bundle from its own counts")
     r.add_argument("paths", nargs="+")

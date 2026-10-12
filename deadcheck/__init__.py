@@ -8,6 +8,7 @@ separation per checkpoint, coverage per defect class, and the residual.
 from .assay import Assay, CheckpointResult, ClassResult, run
 from .fragility import (DecisionRule, FlipReport, at_most, blocking,
                         no_checkpoint_fired, what_flips)
+from .power import ClassPower, PowerReport, power, required_n, wilson
 from .registry import (Registry, Rejection, Row, build, index_json,
                        render_markdown, verify)
 from .certificate import (ARTIFACT, PROFILE, VAC_VERSION, assay_json,
@@ -30,7 +31,7 @@ __version__ = "0.1.0"
 
 __all__ = [
     "Assay", "AssayError", "Checkpoint", "CheckpointResult", "ClassResult",
-    "ARTIFACT", "PROFILE", "Registry", "Rejection", "Row", "SUBSTANTIAL",
+    "ARTIFACT", "ClassPower", "PROFILE", "PowerReport", "Registry", "Rejection", "Row", "SUBSTANTIAL",
     "VAC_VERSION", "AgreementResult", "AttackReport", "Base", "Calibration",
     "RaterCheck", "Rating", "CoveragePolicy", "Evaded", "Evasion",
     "GENERIC_EVASIONS", "DecisionRule", "FlipReport", "Injection", "Pack",
@@ -39,7 +40,7 @@ __all__ = [
     "defect_classes", "load", "markdown", "material_fingerprint",
     "agree", "append_to_reply", "assay_json", "attack", "calibrate", "certify",
     "build", "cohens_kappa", "earned", "index_json", "render", "render_markdown",
-    "vac_manifest", "verify",
+    "power", "required_n", "vac_manifest", "verify", "wilson",
     "no_checkpoint_fired",
     "paraphrase",
     "prepend_to_reply",
