@@ -8,6 +8,8 @@ separation per checkpoint, coverage per defect class, and the residual.
 from .assay import Assay, CheckpointResult, ClassResult, run
 from .fragility import (DecisionRule, FlipReport, at_most, blocking,
                         no_checkpoint_fired, what_flips)
+from .certificate import (ARTIFACT, PROFILE, VAC_VERSION, assay_json,
+                          certify, render, vac_manifest)
 from .agreement import (SUBSTANTIAL, AgreementResult, RaterCheck, Rating,
                         agree, cohens_kappa)
 from .adversary import (GENERIC_EVASIONS, AttackReport, Evaded, Evasion,
@@ -26,13 +28,14 @@ __version__ = "0.1.0"
 
 __all__ = [
     "Assay", "AssayError", "Checkpoint", "CheckpointResult", "ClassResult",
-    "SUBSTANTIAL", "AgreementResult", "AttackReport", "Base", "Calibration",
+    "ARTIFACT", "PROFILE", "SUBSTANTIAL", "VAC_VERSION", "AgreementResult", "AttackReport", "Base", "Calibration",
     "RaterCheck", "Rating", "CoveragePolicy", "Evaded", "Evasion",
     "GENERIC_EVASIONS", "DecisionRule", "FlipReport", "Injection", "Pack",
     "NAIVE_PROBES", "Probe", "ProbeResult", "RatchetReport", "Rubric",
     "Specimen", "SpecimenSet", "at_most", "blocking", "capability", "compare",
     "defect_classes", "load", "markdown", "material_fingerprint",
-    "agree", "append_to_reply", "attack", "calibrate", "cohens_kappa", "earned",
+    "agree", "append_to_reply", "assay_json", "attack", "calibrate", "certify",
+    "cohens_kappa", "earned", "render", "vac_manifest",
     "no_checkpoint_fired",
     "paraphrase",
     "prepend_to_reply",

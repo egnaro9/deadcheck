@@ -309,6 +309,45 @@ Two more refusals: a single rater agreeing with themselves is not a measurement,
 and only specimens **every** rater covered are compared, so a rater who skipped
 the hard ones cannot raise the score.
 
+## The certificate
+
+A rating a stranger can check without trusting you. deadcheck emits a
+Capability Evidence Bundle in the
+[vac-protocol](https://github.com/egnaro9/vac-protocol) v0.2 shape, so the
+existing offline verifier reads it. **Still no dependencies:** this writes the
+format, it does not import the protocol.
+
+```python
+from deadcheck import certify
+
+certify(out_dir, rubric, specimens, assay, calibration, attack)
+# writes assay.json, CERTIFICATE.md, vac.json
+```
+
+```
+rubric-coverage:written_v2 — 3/3 defect classes caught, floor 0%, earned 100%
+```
+
+**It refuses to certify against uncalibrated material.** If a naive probe
+already reaches a defect class, the coverage number is not interpretable, and
+rating it would publish a figure nobody can read. `allow_uncalibrated=True`
+issues anyway and makes the floor travel in the claim.
+
+Three properties come from the format and one from this layer:
+
+- **No wall clock.** Every field derives from the inputs or from git, so
+  reissuing is byte-identical and a diff means something changed.
+- **Closed evidence.** Every sibling of `vac.json` is listed and hashed, so a
+  file added afterwards breaks verification instead of riding along.
+- **Recomputable headline.** `expect` holds only numbers a verifier derives from
+  `assay.json`. Nothing in it is the issuer's word.
+- **No dirty stamps.** A certificate issued from a dirty tree is unattributable
+  to any commit, which makes `issuer_commit` decoration. It refuses.
+
+The residual is not a footnote here. It is promoted into the claim's
+`limitations`, alongside classes nothing declares and classes no specimen
+tested, so a reader who checks only the headline still gets handed the gaps.
+
 ## The guards
 
 This tool measures whether other people's instruments can fail, so it has to
@@ -348,5 +387,5 @@ material is hand-written, which is the honest bottleneck. Ground truth does not
 parallelize.
 
 ```
-60 passed
+69 passed
 ```
