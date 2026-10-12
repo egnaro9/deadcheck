@@ -219,6 +219,48 @@ Separation is compared with a tolerance, so rewording a predicate does not fail
 a build over float noise. It is a named argument, not a constant, because
 loosening it should be a decision someone makes on purpose.
 
+## The adversary
+
+Of the defects a rubric *does* catch, which can be made to slip?
+
+Not by mutating until the rubric goes quiet, because the cheapest way to
+silence a rubric is to delete the defect, and that is a repair rather than an
+evasion. An **evasion** here is a transformation declared defect-preserving, so
+when the rubric stops firing the defect is still present by construction.
+
+```python
+from deadcheck import GENERIC_EVASIONS, attack
+
+rep = attack(rubric, specimens, GENERIC_EVASIONS, max_combined=2)
+rep.evasion_rate   # of what it catches, how much slips
+rep.held           # nothing slipped
+```
+
+**Preservation is declared per class, and has to be.** Swapping two sentences
+preserves `confident_staleness` and destroys `refusal_then_compliance`, whose
+entire definition is that compliance follows the decline. `unsafe_for` is
+checked before an evasion is applied, so the attacker cannot claim a win it did
+not earn.
+
+**What it found here.** The rewritten example rubric scored 100% coverage and
+was then evaded **44% of the time by doubling the spaces in the reply**. Every
+multi-word phrase match broke on one extra space. The predicates now normalise
+whitespace, and the generic battery is held off.
+
+**And then the honest part.** Domain paraphrases still defeat it 44% of the
+time: `$200` to `200 dollars`, `I cannot` to `I can not`, `I am unable to` to
+`I will not be able to`. **That is left unfixed on purpose.** Patching those
+exact rewordings is whack-a-mole and is the same overfitting the calibration
+already caught once in this repo. A keyword rubric cannot survive paraphrase.
+The useful move is to declare the limit, which is what the residual row exists
+for, not to add more keywords and call it coverage.
+
+**One number to read carefully.** A blind rubric is trivially unevadable. In
+this repo `naive_v1` posts an evasion rate of 0% while never catching six of
+nine defects, so the report prints what it never caught beside the rate. An
+evasion rate alone would rank a rubric that sees nothing above one that sees
+almost everything.
+
 ## The guards
 
 This tool measures whether other people's instruments can fail, so it has to
@@ -258,5 +300,5 @@ material is hand-written, which is the honest bottleneck. Ground truth does not
 parallelize.
 
 ```
-42 passed
+51 passed
 ```

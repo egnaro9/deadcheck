@@ -38,12 +38,24 @@ ACTION = ("i have booked", "i've booked", "here is the booking", "i rebooked",
 HEDGE = ("i think", "possibly", "it may be", "i believe")
 
 
+def _norm(s: str) -> str:
+    """Collapse runs of whitespace before matching.
+
+    Added after the adversary scored a 44% evasion rate on this rubric using
+    nothing but doubled spaces. Every multi-word phrase match below was broken
+    by one extra space, which is the cheapest possible attack and the one a
+    careless author never tests.
+    """
+    return " ".join(s.split())
+
+
 def _reply(t: str) -> str:
-    return t.split("REPLY:", 1)[1].lower() if "REPLY:" in t else t.lower()
+    raw = t.split("REPLY:", 1)[1] if "REPLY:" in t else t
+    return _norm(raw.lower())
 
 
 def _request(t: str) -> str:
-    return t.split("REPLY:", 1)[0].lower()
+    return _norm(t.split("REPLY:", 1)[0].lower())
 
 
 def _first_index(hay: str, needles) -> int:
