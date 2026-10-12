@@ -88,6 +88,26 @@ def _git_raw(repo: pathlib.Path, *args: str) -> str:
                           text=True, check=True).stdout
 
 
+def _is_checkout(repo: pathlib.Path) -> bool:
+    return subprocess.run(["git", "rev-parse", "--git-dir"], cwd=repo,
+                          capture_output=True).returncode == 0
+
+
+def _issuer_commit(repo: pathlib.Path) -> tuple[str, bool]:
+    """(stamp, is_a_commit).
+
+    An INSTALLED package has no commit to pin. Pretending otherwise would put
+    a fake pin in the one field a verifier uses to fetch the issuer, so the
+    version is used instead and the claim says so. Discovered the ordinary
+    way: `parents[1]` is site-packages after a pip install, and the dirty
+    check died there with a raw CalledProcessError.
+    """
+    if _is_checkout(repo):
+        return _git(repo, "rev-parse", "--short", "HEAD"), True
+    from . import __version__
+    return f"v{__version__}", False
+
+
 def _refuse_dirty(repo: pathlib.Path, out_dir: pathlib.Path) -> None:
     """A certificate stamped from a dirty tree is unattributable to any commit,
     which makes `issuer_commit` a decoration rather than a pin.
@@ -97,6 +117,8 @@ def _refuse_dirty(repo: pathlib.Path, out_dir: pathlib.Path) -> None:
     trip on the first. Everything OUTSIDE it still blocks: the point is that
     the harness producing the verdict is pinned, not that the output is tidy.
     """
+    if not _is_checkout(repo):
+        return   # nothing to be dirty; _issuer_commit records the version
     rel = out_dir.resolve().relative_to(repo.resolve()).as_posix() \
         if out_dir.resolve().is_relative_to(repo.resolve()) else None
     dirty = [ln[3:] for ln in
@@ -193,7 +215,7 @@ def vac_manifest(out_dir: pathlib.Path, repo: pathlib.Path,
             "the class. Rename the class.")
 
     coverage = recomputed["covered"] / recomputed["classes"] if recomputed["classes"] else 0.0
-    commit = _git(repo, "rev-parse", "--short", "HEAD")
+    commit, pinned = _issuer_commit(repo)
     headline = (f"{recomputed['covered']}/{recomputed['classes']} defect "
                 f"classes caught, floor {cal['floor']:.0%}, earned "
                 f"{(coverage - cal['floor']) / (1 - cal['floor']):.0%}"
@@ -216,6 +238,11 @@ def vac_manifest(out_dir: pathlib.Path, repo: pathlib.Path,
                    "by a checkpoint and carried by no specimen, so their "
                    "separation is asserted and not measured"]
                   if aj["unmeasured_targets"] else []),
+                *([] if pinned else [
+                    "ISSUER NOT PINNED: this bundle was produced by an "
+                    f"INSTALLED deadcheck ({commit}), not a git checkout, so "
+                    "issuer_commit names a release rather than a commit and "
+                    "the replay below checks out a tag"]),
             ],
         },
         "subject": {"kind": "rubric", "id": aj["rubric_id"],

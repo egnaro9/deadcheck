@@ -148,3 +148,18 @@ def test_the_scope_is_derived_from_the_artifact_filename(tmp_path):
     certify(out, GOOD, m, run(GOOD, m), calibrate(m), repo=repo)
     man = json.loads((out / "vac.json").read_text())
     assert set(man["results"]["summary"]) == {SCOPE}
+
+
+def test_an_installed_package_pins_a_version_and_says_so(tmp_path):
+    """Regression. When deadcheck is pip-installed, repo is site-packages and
+    the dirty check died with a raw CalledProcessError. An installed package
+    has no commit to pin, so issuer_commit names the release and the claim
+    carries a limitation saying the issuer was not a pinned checkout."""
+    not_a_repo = tmp_path / "sitepkgs"
+    not_a_repo.mkdir()
+    m = _pack()
+    p = certify(tmp_path / "c", GOOD, m, run(GOOD, m), calibrate(m),
+                repo=not_a_repo)
+    man = json.loads(p.read_text())
+    assert man["protocol"]["issuer_commit"].startswith("v")
+    assert any("ISSUER NOT PINNED" in l for l in man["claim"]["limitations"])

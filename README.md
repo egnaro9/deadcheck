@@ -8,8 +8,25 @@ the same specimens always produce the same numbers, so a disagreement about a
 score is a disagreement about a predicate.
 
 ```
-python examples/flight_rubric.py
+pip install -e .
+
+deadcheck calibrate --pack packs.flight_v1:FLIGHT_V1
+deadcheck assay     --pack packs.flight_v1:FLIGHT_V1 \
+                    --rubric examples.flight_rubric:written_v2
+deadcheck attack    --pack P --rubric R   # exit 1 if anything slips
+deadcheck certify   --pack P --rubric R --out certs/mine
+deadcheck recompute certs/mine
+deadcheck registry  certs/*
 ```
+
+**Rubrics are code, not configuration.** A checkpoint is a predicate, so no
+file format could carry one. `--rubric` takes a `module:attribute` spec and
+imports it, which means the command executes that module: point it at your own
+rubrics, not at something a stranger handed you.
+
+`attack` and `registry` exit nonzero when they find something, so both belong
+in CI. **Every command above has a test that invokes it**, because a documented
+command nobody runs is a gate that tests a path no one takes.
 
 ## The name
 
@@ -461,5 +478,5 @@ material is hand-written, which is the honest bottleneck. Ground truth does not
 parallelize.
 
 ```
-88 passed
+99 passed
 ```
