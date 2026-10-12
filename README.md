@@ -391,6 +391,37 @@ has to defeat two unrelated properties.
 are recomputed from the rows on read, so there is no number on the board that
 has to be taken on trust.
 
+## Verifying a bundle
+
+```
+python -m deadcheck.recompute path/to/certificate-dir
+```
+
+```
+consistent — 3/3 classes recomputed identical
+  derived values follow from the recorded counts. This is internal consistency,
+  not an independent re-run: predicates are not in the bundle.
+```
+
+**The limit is stated in the output on purpose.** This re-derives every value
+in the bundle from the raw counts the bundle recorded, and checks the manifest's
+headline against the artifact. It does **not** re-run the rubric: predicates are
+code and are not in the bundle, so no bundle can be replayed into a fresh score.
+A passing bundle is internally consistent, not independently reproduced.
+Claiming otherwise would be the overclaim this package exists to catch.
+
+Doctor any derived number and it comes back with both figures:
+
+```
+INCONSISTENT — 3 discrepancies in assay.json
+  checkpoint cp_complied_after_declining: separation recorded +0.9900, counts give +1.0000
+  residual recorded ['ghost'], covered flags give []
+  vac.json expect.residual=0, artifact recomputes 1
+```
+
+An empty invocation exits 2 rather than 0, because a misconfigured CI step
+exiting 0 would read as a passing verification.
+
 ## The guards
 
 This tool measures whether other people's instruments can fail, so it has to
@@ -430,5 +461,5 @@ material is hand-written, which is the honest bottleneck. Ground truth does not
 parallelize.
 
 ```
-79 passed
+88 passed
 ```

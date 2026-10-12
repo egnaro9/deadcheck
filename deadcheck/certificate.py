@@ -253,9 +253,15 @@ def vac_manifest(out_dir: pathlib.Path, repo: pathlib.Path,
                 "python -m pytest issuer/tests -q",
                 f"python -m deadcheck.recompute {ARTIFACT}",
             ],
-            "expected": (f"exit 0; recompute reports 'consistent — "
-                         f"{recomputed['classes']}/{recomputed['classes']} "
-                         "classes recomputed identical'"),
+            "expected": (
+                f"exit 0; recompute reports 'consistent — "
+                f"{recomputed['classes']}/{recomputed['classes']} classes "
+                "recomputed identical'. NOTE THE LIMIT: this re-derives every "
+                "value in the bundle from the raw counts the bundle recorded, "
+                "and checks the headline against the artifact. It does NOT "
+                "re-run the rubric, because predicates are code and are not in "
+                "the bundle. A passing bundle is internally consistent, not "
+                "independently reproduced"),
         },
     }
 
