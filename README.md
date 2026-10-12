@@ -90,6 +90,46 @@ let that checkpoint block. Coverage is a property of the rubric. The verdict is
 a property of the rule. A perfect rubric wired to a permissive rule is still a
 system that approves bad work.
 
+## The ratchet
+
+A rubric may not quietly lose the ability to catch something. Snapshot its
+measured capability, commit the snapshot, compare every later edit against it.
+
+```python
+from deadcheck import capability, compare, load, save
+
+save(capability(run(rubric, specimens), specimens), "capability.json")   # once
+report = compare(load("capability.json"), run(rubric, specimens), specimens)
+report.ok          # False if anything was lost
+print(report.summary())
+```
+
+```
+RATCHET FAILED · naive_v1 · 2 regressions
+  coverage 100% -> 33%
+  REGRESSION: lost detection of refusal_then_compliance
+  REGRESSION: lost detection of wrong_versus_absent
+```
+
+The diff is the easy part. The design problem is that a naive capability gate
+is trivial to satisfy dishonestly, so three cases are handled explicitly:
+
+- **Deleting the specimen that catches you.** The baseline fingerprints the
+  material, not just the scores. In the test for this, a weakened rubric on
+  trimmed material reads **100% coverage before and after, with nothing listed
+  as lost**, because the only class it stopped detecting is no longer in the
+  material. The removed specimen is the finding.
+- **Adding a harder class.** Coverage legitimately falls when the material
+  grows. That is not a regression, and the report says so in those words,
+  because a gate that punishes new specimens teaches people to stop writing
+  them.
+- **No baseline.** `load` raises rather than returning an empty comparison.
+  A ratchet with nothing to compare against cannot be green.
+
+Separation is compared with a tolerance, so rewording a predicate does not fail
+a build over float noise. It is a named argument, not a constant, because
+loosening it should be a decision someone makes on purpose.
+
 ## The guards
 
 This tool measures whether other people's instruments can fail, so it has to
@@ -129,5 +169,5 @@ material is hand-written, which is the honest bottleneck. Ground truth does not
 parallelize.
 
 ```
-16 passed
+25 passed
 ```

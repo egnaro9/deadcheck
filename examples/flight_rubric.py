@@ -189,3 +189,20 @@ if __name__ == "__main__":
     rule = blocking("cp_complied_after_declining", "cp_asserted_unprovided_field")
     for s in SPECIMENS.specimens:
         print("- " + what_flips(written_v2, s, rule, max_size=2).summary())
+
+    # The ratchet. naive_v1's measured capability becomes the baseline; the
+    # question is what written_v2 does to it. In CI this is the step that goes
+    # red, with the name of what stopped being detected.
+    print("\n\n## The ratchet\n")
+    from deadcheck import capability, compare
+    base = capability(run(naive_v1, SPECIMENS, policy), SPECIMENS)
+    forward = compare(base, run(Rubric("naive_v1", written_v2.checkpoints),
+                                SPECIMENS, policy), SPECIMENS)
+    print(forward.summary())
+
+    print("\n### and the same edit backwards, which is what CI has to catch\n")
+    backward = compare(
+        capability(run(Rubric("naive_v1", written_v2.checkpoints), SPECIMENS,
+                       policy), SPECIMENS),
+        run(naive_v1, SPECIMENS, policy), SPECIMENS)
+    print(backward.summary())
