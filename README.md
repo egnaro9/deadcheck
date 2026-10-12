@@ -90,6 +90,47 @@ let that checkpoint block. Coverage is a property of the rubric. The verdict is
 a property of the rule. A perfect rubric wired to a permissive rule is still a
 system that approves bad work.
 
+## Building the material
+
+Hand-labelled ground truth is somebody's judgement wearing a lab coat. The
+alternative, borrowed from
+[reference-fleet](https://github.com/egnaro9/reference-fleet): start from a
+clean transcript, apply one documented deterministic injection, and the
+resulting specimen carries that defect **by construction**. Its ground truth is
+a fact about how it was made, not an opinion about how it reads, and every
+generated specimen records which base and which injection produced it.
+
+```python
+from deadcheck import Base, Injection, Pack, replace_in_reply
+
+pack = Pack("flight_v1", BASES, [
+    Injection("comply_after_declining", "refusal_then_compliance",
+              replace_in_reply(DECLINE, DECLINE + " I have booked the change."),
+              applies_to=frozenset({"decline_other_traveller"})),
+])
+specimens = pack.build()       # deterministic, same bytes every time
+pack.fingerprint()             # identity of the definition, not the output
+```
+
+`packs/flight_v1.py` is the public seed pack: four bases, four injections,
+three defect classes, eight specimens.
+
+**The failure this refuses.** An injection that does not change the transcript
+produces a specimen labelled defective while being byte-identical to clean
+material. Ground truth is then false and **every rubric on earth scores
+perfectly against it, forever, with no symptom anywhere.** `Pack.build` raises
+rather than warns.
+
+**A property that falls out for free.** Each injection rewrites its own clean
+base, so the pack always contains the innocent twin of every defect: the
+transcript that *asks* about the seat sits beside the one that *invents* it.
+That is what [TAXONOMY.md](TAXONOMY.md) asks of a specimen set, enforced by
+construction instead of by discipline.
+
+Generated material agrees with the hand-written set it replaces. Both example
+rubrics score identically against each: 33% and 100%, same residual, same
+decoration. That agreement is a test, not a claim.
+
 ## The ratchet
 
 A rubric may not quietly lose the ability to catch something. Snapshot its
@@ -169,5 +210,5 @@ material is hand-written, which is the honest bottleneck. Ground truth does not
 parallelize.
 
 ```
-25 passed
+34 passed
 ```
