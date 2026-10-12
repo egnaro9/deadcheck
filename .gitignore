@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Private specimen material. The seed pack in examples/ is public on purpose;
+# domain packs and anything derived from paid client work are not. See
+# "What is public and what is not" in README.md.
+specimens_private/
