@@ -90,7 +90,13 @@ def _git_raw(repo: pathlib.Path, *args: str) -> str:
 
 def _refuse_dirty(repo: pathlib.Path, out_dir: pathlib.Path) -> None:
     """A certificate stamped from a dirty tree is unattributable to any commit,
-    which makes `issuer_commit` a decoration rather than a pin."""
+    which makes `issuer_commit` a decoration rather than a pin.
+
+    `out_dir` is exempt, and so is everything under it, because a registry
+    issues many certificates into one parent and the second would otherwise
+    trip on the first. Everything OUTSIDE it still blocks: the point is that
+    the harness producing the verdict is pinned, not that the output is tidy.
+    """
     rel = out_dir.resolve().relative_to(repo.resolve()).as_posix() \
         if out_dir.resolve().is_relative_to(repo.resolve()) else None
     dirty = [ln[3:] for ln in
@@ -260,7 +266,8 @@ def certify(out_dir: pathlib.Path, rubric: Rubric, specimens: SpecimenSet,
             agreements: tuple[AgreementResult, ...] = (),
             issuer: str = "egnaro9/deadcheck",
             repo: pathlib.Path | None = None,
-            allow_uncalibrated: bool = False) -> pathlib.Path:
+            allow_uncalibrated: bool = False,
+            cert_root: pathlib.Path | None = None) -> pathlib.Path:
     """Write assay.json, CERTIFICATE.md and vac.json into `out_dir`."""
     repo = repo or pathlib.Path(__file__).resolve().parents[1]
 
@@ -279,7 +286,7 @@ def certify(out_dir: pathlib.Path, rubric: Rubric, specimens: SpecimenSet,
             f"{assay.specimen_set_id!r}. A floor from other material says "
             "nothing about this score.")
 
-    _refuse_dirty(repo, out_dir)
+    _refuse_dirty(repo, cert_root or out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     aj = assay_json(rubric, specimens, assay, cal, attack, agreements)
     (out_dir / ARTIFACT).write_text(json.dumps(aj, indent=1, sort_keys=True) + "\n")

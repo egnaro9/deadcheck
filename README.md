@@ -348,6 +348,49 @@ The residual is not a footnote here. It is promoted into the claim's
 `limitations`, alongside classes nothing declares and classes no specimen
 tested, so a reader who checks only the headline still gets handed the gaps.
 
+## The registry
+
+A board that lists whatever it is handed is a directory. A board that can
+**refuse** is a rating.
+
+```python
+from deadcheck import build, render_markdown
+
+reg = build([cert_dir_a, cert_dir_b, cert_dir_c])
+reg.acceptance_rate
+```
+
+Nothing is listed until it has been re-verified from the bundle's own bytes:
+every number in `expect` recomputed from `assay.json`, every evidence file
+re-hashed, the floor checked, and any file present but unlisted treated as a
+failure rather than ignored.
+
+```
+**2 listed, 1 rejected.**
+
+| rubric       | material            | caught | floor | earned | evades | residual |
+|--------------|---------------------|-------:|------:|-------:|-------:|----------|
+| naive_v1     | flight_v1 (8ce222ed)|    1/3 |    0% |    33% |     0% | refusal_then_compliance, wrong_versus_absent |
+| written_v2   | flight_v1 (8ce222ed)|    3/3 |    0% |   100% |     0% | none on this material |
+
+## Rejected
+- tampered — evidence changed since issue: assay.json;
+             expect.residual=0 but assay.json recomputes 1
+```
+
+**The rejected rows are published with their reasons.** An acceptance rate
+without them is not a number, and a board that shows only what passed is making
+exactly the omission this tool exists to catch.
+
+Note what caught the tampered bundle: **both checks, independently.** The
+evidence hash no longer matched, *and* the headline no longer followed from the
+evidence. Either alone would have been a finding; running both means an attacker
+has to defeat two unrelated properties.
+
+**Residual is a column, not a footnote,** and the index stores no totals. Counts
+are recomputed from the rows on read, so there is no number on the board that
+has to be taken on trust.
+
 ## The guards
 
 This tool measures whether other people's instruments can fail, so it has to
@@ -387,5 +430,5 @@ material is hand-written, which is the honest bottleneck. Ground truth does not
 parallelize.
 
 ```
-69 passed
+79 passed
 ```
