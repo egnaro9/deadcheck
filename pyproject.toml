@@ -27,6 +27,9 @@ dependencies = []
 
 [project.optional-dependencies]
 test = ["pytest>=7"]
+# The core reads a parsed dict and stays dependency-free; this only buys
+# reading the YAML file for you.
+promptfoo = ["pyyaml>=6"]
 
 [project.scripts]
 deadcheck = "deadcheck.cli:main"

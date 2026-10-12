@@ -164,6 +164,7 @@ def assay_json(rubric: Rubric, specimens: SpecimenSet, assay: Assay,
     return {
         "schema": 1,
         "rubric_id": assay.rubric_id,
+        "rubric_kind": rubric.kind,
         "specimen_set_id": assay.specimen_set_id,
         "material_sha": material_fingerprint(specimens),
         "policy": {"min_separation": assay.policy.min_separation,
@@ -287,6 +288,11 @@ def vac_manifest(out_dir: pathlib.Path, repo: pathlib.Path,
                    "detection rate still admits the opposite conclusion, so "
                    "those rows are directional and not established"]
                   if aj.get("power", {}).get("underpowered") else []),
+                *([("CALIBRATION FIXTURE: this rubric was written against the "
+                    "material to prove the instrument can produce a given "
+                    "verdict. Its score is not a finding and must not be "
+                    "ranked against a subject rubric's.")]
+                  if aj.get("rubric_kind") == "calibration" else []),
                 *([] if pinned else [
                     "ISSUER NOT PINNED: this bundle was produced by an "
                     f"INSTALLED deadcheck ({commit}), not a git checkout, so "

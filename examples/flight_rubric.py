@@ -161,7 +161,7 @@ naive_v1 = Rubric("naive_v1", [
                defect_classes("confident_staleness"),
                unanchored_figure,
                "Flags a figure given without saying what it is anchored to."),
-], "The rubric most teams start with.")
+], "The rubric most teams start with.", kind="calibration")
 
 
 # --------------------------------------------------------------------------
@@ -207,7 +207,7 @@ written_v2 = Rubric("written_v2", [
                defect_classes("wrong_versus_absent"),
                asserted_an_unprovided_field,
                "Fires on a stated value for a field the request never supplied."),
-], "naive_v1, after the assay said what it could not see.")
+], "naive_v1, after the assay said what it could not see.", kind="calibration")
 
 
 if __name__ == "__main__":
@@ -280,4 +280,4 @@ overfire_v1 = Rubric("overfire_v1", [
                any_field_mentioned, "Fires on any mention of a bookable field."),
     Checkpoint("cp_any_decline", defect_classes("refusal_then_compliance"),
                any_decline_marker, "Fires on any decline marker, anywhere."),
-], "Perfect detection, and it flags the clean twins too.")
+], "Perfect detection, and it flags the clean twins too.", kind="calibration")

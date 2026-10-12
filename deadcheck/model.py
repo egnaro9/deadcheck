@@ -99,14 +99,33 @@ class Checkpoint:
         return bool(self.predicate(specimen.transcript))
 
 
+RUBRIC_KINDS = ("subject", "calibration")
+
+
 @dataclass(frozen=True)
 class Rubric:
+    """A set of checkpoints, and a declaration of what it is FOR.
+
+    `kind` is load-bearing. A `subject` rubric is the thing being measured:
+    an external rubric, a client's, anything whose score is a finding. A
+    `calibration` rubric exists to prove the instrument can produce a given
+    verdict (low coverage, over-firing, evadable) and its score is NOT a
+    finding: it was written against the material and will look exactly as
+    good or bad as it was built to. The registry keeps the two apart and
+    never ranks one against the other. Defaults to `subject` so a rubric
+    loaded from someone else's tool is a subject unless someone says otherwise.
+    """
+
     id: str
     checkpoints: tuple[Checkpoint, ...]
     description: str = ""
+    kind: str = "subject"
 
     def __post_init__(self) -> None:
         _check_id("rubric", self.id)
+        if self.kind not in RUBRIC_KINDS:
+            raise AssayError(f"rubric {self.id!r}: kind must be one of "
+                             f"{RUBRIC_KINDS}, not {self.kind!r}")
         object.__setattr__(self, "checkpoints", tuple(self.checkpoints))
         if not self.checkpoints:
             raise AssayError(f"rubric {self.id!r} has no checkpoints")
@@ -197,6 +216,6 @@ def all_ids(items: Iterable) -> tuple[str, ...]:
 
 
 __all__ = [
-    "AssayError", "Checkpoint", "CoveragePolicy", "Rubric", "Specimen",
-    "SpecimenSet", "all_ids", "defect_classes",
+    "AssayError", "Checkpoint", "CoveragePolicy", "RUBRIC_KINDS", "Rubric",
+    "Specimen", "SpecimenSet", "all_ids", "defect_classes",
 ]

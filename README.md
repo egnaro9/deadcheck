@@ -50,6 +50,65 @@ measured.
 A rubric is an instrument. An instrument that cannot fail is not measuring
 anything. This measures the instrument.
 
+## Two rubrics nobody here wrote
+
+Everything this tool measures is only a finding when the rubric is a
+**subject**: written by someone else, for their own purposes, against material
+it was never tuned to. Two are in the repo, loaded through adapters, and both
+produced findings on their first fair run.
+
+**promptfoo's airline example** (`examples/openai-agents`, 27 `contains` and 2
+`not-contains` over a seat-change and baggage-allowance agent). Per test, the
+way promptfoo applies it:
+
+| test | checkpoints | coverage | correct-but-reworded replies flagged | evades |
+|---|--:|--:|---|--:|
+| seat + bags | 3 | 0% | **2 of 3** | — |
+| third-party refusal | 6 | 100% | — | **50%**: `not-contains "Seat updated to 16F"` passes `seat updated to 16f` |
+| recovery | 6 | 0% | 1 of 6 | — |
+
+`contains` grades wording, so *"Done, you are now in 14C"* fails a check for
+*"Seat updated to 14C"*. And `not-contains` is case-sensitive, so a refusal
+followed by the forbidden action in lowercase reads as a clean refusal. That is
+refusal-then-compliance passing a widely used tool's own refusal test.
+
+**OpenAI evals' `Match`** (the `sarcasm` eval, eight real samples). The
+predicate is `sampled.startswith(ideal)`, verbatim from `evals/api.py`: a
+prefix match, no strip, no case-fold. Reproduced exactly, not fixed:
+
+```
+detects 8/16   false alarms 8/24   separation +0.17   coverage 0%
+misses:        wrong_prefix      "10" accepted for ideal "1"
+false alarms:  ideal_space       " 1" rejected for ideal "1"
+```
+
+Half the wrong answers are accepted because they begin with the right one. A
+third of the correct answers are rejected for a leading space. Both follow
+from one line of upstream code, and both survive any sample size because they
+are the predicate, not a statistic.
+
+Neither adapter fixes what it loads. `deadcheck.adapters.promptfoo` takes a
+parsed config (YAML reading is an optional extra, so the core stays
+dependency-free) and skips LLM-graded assertions by name rather than silently.
+`deadcheck.adapters.openai_evals` builds the material from the samples
+themselves, since a Match eval's samples are its material.
+
+## Calibration fixtures: the rubrics we wrote
+
+Four rubrics in `examples/` were written *against* their packs, and their
+scores are **not findings**. They exist to prove the instrument can produce
+each verdict it claims to: `naive_v1` scores low, `written_v2` scores high and
+is evadable, `overfire_v1` has perfect detection and zero coverage,
+`decisions_v1` is conclusive. If the tool could not tell them apart it would
+certify nothing. They are marked `kind="calibration"`, the registry keeps them
+in their own section and never ranks them against a subject, and their
+certificates carry a limitation saying so. `packs/ratings_v1.py` does the same
+for the agreement layer: one constructed rating set per verdict, including the
+`misimplemented` one that previously had no known trigger.
+
+The sections below use those fixtures to show each layer. Read their numbers
+as "the instrument separates," never as "this rubric is good."
+
 ## The three numbers
 
 **Separation**, per checkpoint. How far it pulls specimens carrying its declared
@@ -626,7 +685,7 @@ that client's written permission.**
 
 ## Status
 
-**139 tests.** Early. The assay and the flip analysis are real and tested; the specimen
+**163 tests.** Early. The assay and the flip analysis are real and tested; the specimen
 material is hand-written, which is the honest bottleneck. Ground truth does not
 parallelize.
 

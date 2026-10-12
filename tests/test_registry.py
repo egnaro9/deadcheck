@@ -172,3 +172,36 @@ def test_an_underpowered_verdict_is_printed_as_unsupported(tmp_path):
     md = render_markdown(reg)
     assert "**no**: rot" in md
     assert "supported" in next(l for l in md.splitlines() if l.startswith("| rubric "))
+
+
+def test_calibration_rows_are_shown_apart_and_never_ranked_with_subjects(tmp_path):
+    """The reframe. A calibration rubric was written against its material and
+    will look exactly as good as it was built to; its row is not a finding.
+    The board keeps it out of the subjects table and says why."""
+    from deadcheck import calibrate, certify
+    repo, m = _repo(tmp_path), _material()
+    cal_r = Rubric("ours", [Checkpoint("cp", defect_classes(ROT),
+                                       lambda t: "wholly different" in t, "d")],
+                   kind="calibration")
+    subj_r = Rubric("theirs", [Checkpoint("cp", defect_classes(ROT),
+                                          lambda t: "wholly different" in t, "d")])
+    root = repo / "certs"
+    for r in (cal_r, subj_r):
+        certify(root / r.id, r, m, run(r, m), calibrate(m), repo=repo, cert_root=root)
+    reg = build([root / "ours", root / "theirs"])
+    assert [r.rubric_id for r in reg.subjects] == ["theirs"]
+    assert [r.rubric_id for r in reg.calibration] == ["ours"]
+    md = render_markdown(reg)
+    subj_section = md.split("## Subjects")[1].split("## Calibration fixtures")[0]
+    cal_section = md.split("## Calibration fixtures")[1].split("## Rejected")[0]
+    assert "`theirs`" in subj_section and "`ours`" not in subj_section
+    assert "`ours`" in cal_section and "`theirs`" not in cal_section
+    assert "not findings" in cal_section
+    # and the bundle itself says what it is
+    man = json.loads((root / "ours" / "vac.json").read_text())
+    assert any("CALIBRATION FIXTURE" in l for l in man["claim"]["limitations"])
+
+
+def test_an_unknown_rubric_kind_is_refused():
+    with pytest.raises(AssayError, match="kind must be one of"):
+        Rubric("r", [Checkpoint("cp", defect_classes(ROT), lambda t: True)], kind="vibes")

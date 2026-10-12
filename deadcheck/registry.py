@@ -50,6 +50,7 @@ class Row:
     decoration: int
     uncalibrated: bool
     underpowered: tuple[str, ...]   # classes whose verdict the sample cannot hold up
+    kind: str                       # subject or calibration
     path: str
 
     @property
@@ -67,6 +68,14 @@ class Rejection:
 class Registry:
     rows: tuple[Row, ...]
     rejected: tuple[Rejection, ...]
+
+    @property
+    def subjects(self) -> tuple[Row, ...]:
+        return tuple(r for r in self.rows if r.kind == "subject")
+
+    @property
+    def calibration(self) -> tuple[Row, ...]:
+        return tuple(r for r in self.rows if r.kind == "calibration")
 
     @property
     def accepted(self) -> int:
@@ -194,6 +203,7 @@ def verify(cert_dir: pathlib.Path) -> tuple[Row | None, tuple[str, ...]]:
         decoration=got["decoration"],
         uncalibrated=floor > 0,
         underpowered=tuple(aj.get("power", {}).get("underpowered", ())),
+        kind=aj.get("rubric_kind", "subject"),
         path=cert_dir.name,
     ), ()
 
@@ -236,7 +246,7 @@ def index_json(reg: Registry) -> dict:
              "earned": None if r.earned is None else round(r.earned, 4),
              "evasion_rate": r.evasion_rate, "decoration": r.decoration,
              "residual": list(r.residual), "uncalibrated": r.uncalibrated,
-             "underpowered": list(r.underpowered), "path": r.path}
+             "underpowered": list(r.underpowered), "kind": r.kind, "path": r.path}
             for r in reg.rows],
         "rejected": [{"path": x.path, "reasons": list(x.reasons)}
                      for x in reg.rejected],
@@ -247,23 +257,11 @@ def _pct(x: float) -> str:
     return f"{x * 100:.0f}%"
 
 
-def render_markdown(reg: Registry) -> str:
-    out = [
-        "# Certified rubrics", "",
-        f"**{reg.accepted} listed, {len(reg.rejected)} rejected.** Every row "
-        "below was re-verified from its own bundle: the headline recomputed "
-        "from the evidence, every evidence file re-hashed, and the floor "
-        "checked. Rejections are published with their reasons, because an "
-        "acceptance rate without them is not a number.",
-        "",
-        "You do not have to trust this board. Each row links to a bundle any "
-        "third party can verify offline.",
-        "",
-        "| rubric | material | caught | floor | earned | evades | residual | "
-        "supported |",
-        "|---|---|--:|--:|--:|--:|---|---|",
-    ]
-    for r in reg.rows:
+def _table(rows) -> list[str]:
+    out = ["| rubric | material | caught | floor | earned | evades | residual | "
+           "supported |",
+           "|---|---|--:|--:|--:|--:|---|---|"]
+    for r in rows:
         ev = ("n/a, caught nothing" if r.evasion_rate is None and r.covered == 0
               else "n/a" if r.evasion_rate is None else _pct(r.evasion_rate))
         earned = "n/a" if r.earned is None else _pct(r.earned)
@@ -278,6 +276,39 @@ def render_markdown(reg: Registry) -> str:
                    f"({r.material_sha[:8]}) | {r.covered}/{r.classes} | "
                    f"{_pct(r.floor)} | {earned} | {ev} | {resid} | "
                    f"{supported} |")
+    return out
+
+
+def render_markdown(reg: Registry) -> str:
+    subj, cal = reg.subjects, reg.calibration
+    out = [
+        "# Certified rubrics", "",
+        f"**{len(subj)} subject rubric(s) listed, {len(cal)} calibration "
+        f"fixture(s), {len(reg.rejected)} rejected.** Every row was re-verified "
+        "from its own bundle: the headline recomputed from the evidence, every "
+        "evidence file re-hashed, and the floor checked. Rejections are "
+        "published with their reasons, because an acceptance rate without "
+        "them is not a number.",
+        "",
+        "You do not have to trust this board. Each row links to a bundle any "
+        "third party can verify offline.",
+        "",
+        "## Subjects", "",
+        "These rows are findings. Each is a rubric someone else wrote, scored "
+        "against material it was not written for.",
+        "",
+    ]
+    out += _table(subj) if subj else ["_No subject rubrics yet. Everything "
+                                      "below is calibration._"]
+    out += ["", "## Calibration fixtures", "",
+            "**These rows are not findings.** Each rubric was written against "
+            "its material to prove the instrument can produce a given verdict: "
+            "low coverage, perfect detection with zero coverage, evadable by "
+            "paraphrase, conclusive. They look exactly as good or bad as they "
+            "were built to, and they are never ranked against a subject. If "
+            "the instrument could not tell them apart it would certify "
+            "nothing.", ""]
+    out += _table(cal) if cal else ["_No calibration fixtures in this build._"]
 
     out += ["", "## Rejected", ""]
     if reg.rejected:

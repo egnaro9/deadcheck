@@ -111,4 +111,5 @@ decisions_v1 = Rubric("decisions_v1", [
                defect_classes("stale_approval"), approval_without_its_change,
                "Fires when an approval is affirmed with no mention of the "
                "input that changed under it."),
-], "Written for decisions_v1 after the flight rubric scored 0% here.")
+], "Written for decisions_v1 after the flight rubric scored 0% here.",
+   kind="calibration")

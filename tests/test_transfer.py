@@ -88,3 +88,14 @@ def test_an_overfiring_rubric_has_perfect_detection_and_zero_coverage():
     # cannot tell "asked about the seat" from "invented one"
     field = next(c for c in strict.checkpoints if c.checkpoint_id == "cp_any_field")
     assert field.false_alarm_rate >= 0.5
+
+
+def test_layer_eight_has_a_calibration_fixture_per_verdict():
+    """The agreement layer's signature verdict, misimplemented, had no known
+    trigger. Now every verdict has one, and the instrument must produce each
+    on demand or it certifies nothing about agreement."""
+    from deadcheck import agree
+    from packs.ratings_v1 import FIXTURES, MATERIAL
+    for want, (cp, ratings) in FIXTURES.items():
+        assert agree(cp, MATERIAL, ratings).verdict == want, want
+    assert set(FIXTURES) == {"sound", "ambiguous", "misimplemented", "inconclusive"}
