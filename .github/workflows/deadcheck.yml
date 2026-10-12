@@ -24,6 +24,20 @@ jobs:
         run: python -m pip install -e '.[test]'
       - name: Tests
         run: python -m pytest tests -q
+      - name: The wheel must ship the adapters, not only the editable install
+        # pyproject's package list is explicit, and the first wheel built from
+        # it shipped no adapters while `pip install -e` imported them fine. So
+        # this installs the WHEEL into a clean venv and imports from a
+        # directory that is not the checkout, which is the path a user takes.
+        run: |
+          # A stale build/lib is copied into the next wheel whatever the
+          # package list says; this gate once passed on the broken list that way.
+          rm -rf build dist
+          python -m pip wheel . --no-deps -w dist -q
+          python -m venv "$RUNNER_TEMP/wheelvenv"
+          "$RUNNER_TEMP/wheelvenv/bin/python" -m pip install -q dist/deadcheck-*.whl
+          cd "$RUNNER_TEMP" && ./wheelvenv/bin/python -c \
+            "import deadcheck.adapters.promptfoo, deadcheck.adapters.openai_evals, deadcheck.adapters.inspect_ai"
       - name: README's advertised test count must match the suite
         run: |
           python -m pip install git+https://github.com/egnaro9/readme-test-count

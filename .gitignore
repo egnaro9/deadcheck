@@ -2,6 +2,10 @@
 __pycache__/
 *.pyc
 .pytest_cache/
+# Left behind by `pip wheel .`; a stale build/lib is copied into the next wheel.
+build/
+dist/
+*.egg-info/
 
 # Private specimen material. The seed pack in examples/ is public on purpose;
 # domain packs and anything derived from paid client work are not. See

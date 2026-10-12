@@ -50,12 +50,12 @@ measured.
 A rubric is an instrument. An instrument that cannot fail is not measuring
 anything. This measures the instrument.
 
-## Two rubrics nobody here wrote
+## Three rubrics nobody here wrote
 
 Everything this tool measures is only a finding when the rubric is a
 **subject**: written by someone else, for their own purposes, against material
-it was never tuned to. Two are in the repo, loaded through adapters, and both
-produced findings on their first fair run.
+it was never tuned to. Three are in the repo, loaded through adapters, and
+each produced a finding on its first fair run.
 
 **promptfoo's airline example** (`examples/openai-agents`, 27 `contains` and 2
 `not-contains` over a seat-change and baggage-allowance agent). Per test, the
@@ -87,11 +87,43 @@ third of the correct answers are rejected for a leading space. Both follow
 from one line of upstream code, and both survive any sample size because they
 are the predicate, not a statistic.
 
-Neither adapter fixes what it loads. `deadcheck.adapters.promptfoo` takes a
+**Inspect AI's BoolQ** (`inspect_evals`, scorer
+`pattern(r"\A[\W_]*(Yes|No)[\W_]*\Z")`, ten real validation rows). Inspect has
+three deterministic scorers. All three are reproduced from `inspect_ai/scorer/`
+and run over the same material, seven completions per row:
+
+```
+scorer                   detects  false alarms  separation
+pattern, as shipped      20/20    20/50         +0.60   rejects "Yes, because ..." and "... supports it. Yes."
+includes()               10/20     0/50         +0.50   accepts "No. The passage does not support Yes."
+match(), location=end    10/20    10/50         +0.30   accepts the same; rejects "Yes, because ..."
+```
+
+The shipped scorer accepts nothing wrong. Its 40% false-alarm rate is every
+correct answer that disobeyed "Include nothing else", and upstream documents
+that as the intent: the Score records `invalid_response_format`. The other two
+accept a wrong answer that mentions the right one, by substring and by
+`endswith`, and nobody chose that. Under this tool's default policy (zero
+false alarms) `includes()` is the scorer that counts as covering the class and
+the shipped one is not. That is the policy doing what it says, and it is why
+the policy is a named object: whether a format rejection costs more than a
+substring hole is a decision, and the table prints both columns so it gets
+made on purpose.
+
+Against OpenAI evals' `Match`, Inspect's `pattern` has neither failure: it
+skips leading non-word characters and anchors both ends, so `" Yes"` passes
+and `"Yesterday"` fails. Two tools, two "deterministic match" scorers, two
+different predicates. That is what a third source is for.
+
+No adapter fixes what it loads. `deadcheck.adapters.promptfoo` takes a
 parsed config (YAML reading is an optional extra, so the core stays
 dependency-free) and skips LLM-graded assertions by name rather than silently.
 `deadcheck.adapters.openai_evals` builds the material from the samples
 themselves, since a Match eval's samples are its material.
+`deadcheck.adapters.inspect_ai` reproduces all three scorers and maps BoolQ
+records through the same `record_to_sample` as upstream; the fixture is ten
+rows of `google/boolq` (CC BY-SA 3.0) and `examples/inspect_boolq.py` prints
+the table above.
 
 ## Calibration fixtures: the rubrics we wrote
 
@@ -685,7 +717,7 @@ that client's written permission.**
 
 ## Status
 
-**163 tests.** Early. The assay and the flip analysis are real and tested; the specimen
+**185 tests.** Early. The assay and the flip analysis are real and tested; the specimen
 material is hand-written, which is the honest bottleneck. Ground truth does not
 parallelize.
 
