@@ -261,6 +261,54 @@ nine defects, so the report prints what it never caught beside the rate. An
 evasion rate alone would rank a rubric that sees nothing above one that sees
 almost everything.
 
+## Can a second person apply it?
+
+Every rubric in this field claims its checkpoints are objective, or "a predicate
+a second person could apply." That claim is measurable and almost nobody
+measures it. Psychometrics has had the tool since 1960.
+
+A checkpoint has **two** definitions, and they can disagree: the **prose** a
+reviewer reads, and the **predicate** the code runs. So agreement is scored
+three ways.
+
+```python
+from deadcheck import Rating, agree
+
+result = agree(checkpoint, specimens, ratings)
+result.verdict   # sound | ambiguous | misimplemented | inconclusive
+```
+
+```
+AGREEMENT · cp_rot · MISIMPLEMENTED
+  2 raters over 6 specimens
+  human vs human: raw 100%, kappa +1.00
+  ana vs code: raw 0%, kappa -1.00
+  ben vs code: raw 0%, kappa -1.00
+  THE PROSE AND THE PREDICATE DISAGREE. Raters agree with each other and not
+  with the code, so every assay number for this checkpoint describes a rule
+  nobody wrote down.
+```
+
+**`misimplemented` is the finding nothing else here can make.** Humans applying
+the written description agree with each other and disagree with the code. The
+assay has been faithfully measuring a rule that exists only in the predicate.
+`ambiguous` is the other direction: humans split, so the description is unclear
+whatever the code does.
+
+**Kappa's two traps, both handled:**
+
+- It is **undefined**, not zero, when both raters answer the same way on every
+  specimen. Expected agreement is already 100% and there is no "beyond chance"
+  left to measure. `cohens_kappa` returns `None` with a note rather than
+  inventing a number, and the verdict becomes `inconclusive`.
+- The **prevalence paradox**: when one answer dominates, a checkpoint with 95%
+  raw agreement can post a near-zero kappa. Reporting kappa alone would condemn
+  a usable checkpoint, so raw agreement and kappa always print together.
+
+Two more refusals: a single rater agreeing with themselves is not a measurement,
+and only specimens **every** rater covered are compared, so a rater who skipped
+the hard ones cannot raise the score.
+
 ## The guards
 
 This tool measures whether other people's instruments can fail, so it has to
@@ -300,5 +348,5 @@ material is hand-written, which is the honest bottleneck. Ground truth does not
 parallelize.
 
 ```
-51 passed
+60 passed
 ```
