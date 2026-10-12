@@ -24,6 +24,10 @@ jobs:
         run: python -m pip install -e '.[test]'
       - name: Tests
         run: python -m pytest tests -q
+      - name: README's advertised test count must match the suite
+        run: |
+          python -m pip install git+https://github.com/egnaro9/readme-test-count
+          readme-test-count .
 
       # Each step below is a SEPARATE gate on purpose. Folded into one command
       # the first failure would mask the rest, and a gate that reports one

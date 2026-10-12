@@ -29,7 +29,7 @@ import json
 import pathlib
 from dataclasses import dataclass, field
 
-from .certificate import ARTIFACT, SCOPE, _recomputed
+from .certificate import ARTIFACT, PROJECTIONS, SCOPES, _project, _recomputed
 from .model import AssayError
 
 SCHEMA = 1
@@ -132,21 +132,44 @@ def verify(cert_dir: pathlib.Path) -> tuple[Row | None, tuple[str, ...]]:
     checks = man.get("results", {}).get("checks", [])
     if not checks:
         reasons.append("no checks: nothing in this bundle is verifiable")
+    for fname, path in PROJECTIONS.items():
+        pp = cert_dir / fname
+        if not pp.exists():
+            reasons.append(f"projection missing: {fname}")
+            continue
+        try:
+            if json.loads(pp.read_text()) != _project(aj, path):
+                reasons.append(f"{fname} is not {'.'.join(path)} of "
+                               f"{ARTIFACT}: the headline could disagree "
+                               "with the record")
+        except (json.JSONDecodeError, KeyError):
+            reasons.append(f"{fname} unreadable or {ARTIFACT} lacks "
+                           f"{'.'.join(path)}")
+    seen_scopes: set[str] = set()
     for chk in checks:
         art = chk.get("artifact", "")
-        if art.split(".")[0] != SCOPE:
-            reasons.append(f"check.artifact {art!r} is not the artifact the "
-                           f"summary scopes ({SCOPE!r}); the headline would "
-                           "bind to evidence nobody recomputed")
+        scope = art.split(".")[0]
+        if scope not in SCOPES:
+            reasons.append(f"check.artifact {art!r} is not a projection this "
+                           "registry recomputes; the headline would bind to "
+                           "evidence nobody checked")
+        if scope in seen_scopes:
+            reasons.append(f"scope {scope!r} claimed by more than one check")
+        seen_scopes.add(scope)
         for k, v in chk.get("expect", {}).items():
-            if k not in got:
+            if k == "floor":
+                want = round(aj["calibration"]["floor"], 4)
+                if want != v:
+                    reasons.append(f"expect.floor={v} but assay.json records {want}")
+            elif k not in got:
                 reasons.append(f"expect.{k} is not a recomputable field")
             elif got[k] != v:
                 reasons.append(f"expect.{k}={v} but assay.json recomputes {got[k]}")
 
     summary = man.get("results", {}).get("summary", {})
-    if set(summary) != {SCOPE}:
-        reasons.append(f"summary scope {sorted(summary)}, expected [{SCOPE!r}]")
+    if set(summary) != set(SCOPES):
+        reasons.append(f"summary scopes {sorted(summary)}, expected "
+                       f"{sorted(SCOPES)}")
 
     if reasons:
         return None, tuple(reasons)

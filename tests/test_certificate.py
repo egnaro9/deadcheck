@@ -72,7 +72,7 @@ def test_allow_uncalibrated_puts_the_floor_in_the_claim(tmp_path):
                 repo=_repo(tmp_path), allow_uncalibrated=True)
     m = json.loads(p.read_text())
     assert "floor" in m["claim"]["capability"]
-    assert m["results"]["summary"]["assay"]["floor_pct"] > 0
+    assert m["results"]["summary"]["probes"]["floor"] > 0
 
 
 def test_a_floor_from_other_material_is_refused(tmp_path):
@@ -130,7 +130,7 @@ def test_expect_holds_only_recomputable_fields(tmp_path):
     certify(out, GOOD, m, run(GOOD, m), calibrate(m), repo=repo)
     man = json.loads((out / "vac.json").read_text())
     aj = json.loads((out / "assay.json").read_text())
-    exp = man["results"]["checks"][0]["expect"]
+    exp = {k: v for c in man["results"]["checks"] for k, v in c["expect"].items()}
     assert exp["classes"] == len(aj["classes"])
     assert exp["covered"] == sum(1 for c in aj["classes"] if c["covered"])
     assert exp["residual"] == len(aj["residual"])
@@ -141,13 +141,16 @@ def test_the_scope_is_derived_from_the_artifact_filename(tmp_path):
     """VAC 0.2 binds a summary on <scope>.<field>, and the verifier derives
     scope from the primary evidence filename. Deriving it from the same
     literal here keeps the two from drifting."""
-    from deadcheck.certificate import ARTIFACT, SCOPE
-    assert SCOPE == ARTIFACT.split(".")[0]
+    from deadcheck.certificate import PROJECTIONS, SCOPES
+    assert set(SCOPES) == {"assay"} | {f.split(".")[0] for f in PROJECTIONS}
     repo, m = _repo(tmp_path), _pack()
     out = tmp_path / "c"
     certify(out, GOOD, m, run(GOOD, m), calibrate(m), repo=repo)
     man = json.loads((out / "vac.json").read_text())
-    assert set(man["results"]["summary"]) == {SCOPE}
+    assert set(man["results"]["summary"]) == set(SCOPES)
+    # one scope per check, which is what the real verifier refused before
+    scopes = [c["artifact"].split(".")[0] for c in man["results"]["checks"]]
+    assert len(scopes) == len(set(scopes))
 
 
 def test_an_installed_package_pins_a_version_and_says_so(tmp_path):
@@ -163,3 +166,37 @@ def test_an_installed_package_pins_a_version_and_says_so(tmp_path):
     man = json.loads(p.read_text())
     assert man["protocol"]["issuer_commit"].startswith("v")
     assert any("ISSUER NOT PINNED" in l for l in man["claim"]["limitations"])
+
+
+
+def test_manifest_satisfies_what_the_real_verifier_demanded(tmp_path):
+    """vac-protocol's verifier rejected five successive drafts of this bundle
+    before passing it. Its three structural demands are pinned here so they
+    cannot regress without that checkout being present:
+      1. one scope per check (two checks on one artifact were refused),
+      2. every evidence file is READ by a check or named as its render
+         (a listed-but-unread file was refused),
+      3. every summary field is recomputed by some check (floor_pct and
+         difficulty_pct, which nothing recomputed, were refused).
+    Also pinned: subject.kind is one the verifier allows, and the profile is
+    its generic rows-aggregate-v1, not an invented name."""
+    repo, m = _repo(tmp_path), _pack()
+    out = tmp_path / "c"
+    certify(out, GOOD, m, run(GOOD, m), calibrate(m), repo=repo)
+    man = json.loads((out / "vac.json").read_text())
+    checks = man["results"]["checks"]
+
+    assert man["subject"]["kind"] in ("agent", "suite-archetype")
+    assert all(c["profile"] == "rows-aggregate-v1" for c in checks)
+
+    scopes = [c["artifact"].split(".")[0] for c in checks]
+    assert len(scopes) == len(set(scopes)), "a scope is claimed twice"
+
+    read = {c["artifact"] for c in checks} | {c.get("render") for c in checks}
+    for e in man["evidence"]:
+        assert e["path"] in read, f"{e['path']} is evidence nobody reads"
+
+    recomputed = {k for c in checks for k in c["recompute"]}
+    for scope, fields in man["results"]["summary"].items():
+        for k in fields:
+            assert k in recomputed, f"summary.{scope}.{k} is nobody's to recompute"

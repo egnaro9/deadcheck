@@ -281,7 +281,7 @@ def test_a_check_whose_artifact_is_not_the_summarised_one_is_rejected(tmp_path):
     man["results"]["checks"][0]["artifact"] = "other.json"
     (d / "vac.json").write_text(json.dumps(man))
     row, reasons = verify(d)
-    assert row is None and any("not the artifact the summary scopes" in r for r in reasons)
+    assert row is None and any("not a projection this registry recomputes" in r for r in reasons)
 
 
 # --------------------------------------------------------------- round five

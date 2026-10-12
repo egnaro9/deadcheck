@@ -112,7 +112,7 @@ def recompute(aj: dict) -> list[str]:
 
 def check(target: pathlib.Path) -> tuple[int, str]:
     """Recompute one artifact or certificate directory. Returns (exit, report)."""
-    from .certificate import ARTIFACT, _recomputed
+    from .certificate import ARTIFACT, PROJECTIONS, _project, _recomputed
 
     art = target / ARTIFACT if target.is_dir() else target
     if not art.exists():
@@ -124,6 +124,18 @@ def check(target: pathlib.Path) -> tuple[int, str]:
 
     bad = recompute(aj)
 
+    # The projections the manifest's checks point at must BE the record's
+    # arrays, or the verified headline and the full record can disagree.
+    base = target if target.is_dir() else target.parent
+    for fname, path in PROJECTIONS.items():
+        pp = base / fname
+        if pp.exists():
+            try:
+                if json.loads(pp.read_text()) != _project(aj, path):
+                    bad.append(f"{fname} differs from {ARTIFACT}'s {'.'.join(path)}")
+            except (json.JSONDecodeError, KeyError) as exc:
+                bad.append(f"{fname} unreadable or path missing: {exc}")
+
     # If the manifest sits beside it, the headline must follow from the artifact.
     man_path = (target if target.is_dir() else target.parent) / "vac.json"
     if man_path.exists():
@@ -132,6 +144,11 @@ def check(target: pathlib.Path) -> tuple[int, str]:
             got = _recomputed(aj)
             for chk in man.get("results", {}).get("checks", []):
                 for k, v in chk.get("expect", {}).items():
+                    if k == "floor":
+                        if round(aj["calibration"]["floor"], 4) != v:
+                            bad.append(f"vac.json expect.floor={v}, artifact records "
+                                       f"{round(aj['calibration']['floor'], 4)}")
+                        continue
                     if k not in got:
                         bad.append(f"vac.json expect.{k} is not a recomputable "
                                    "field")

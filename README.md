@@ -330,9 +330,25 @@ the hard ones cannot raise the score.
 
 A rating a stranger can check without trusting you. deadcheck emits a
 Capability Evidence Bundle in the
-[vac-protocol](https://github.com/egnaro9/vac-protocol) v0.2 shape, so the
-existing offline verifier reads it. **Still no dependencies:** this writes the
+[vac-protocol](https://github.com/egnaro9/vac-protocol) v0.2 shape, and the
+existing offline verifier passes it. **Still no dependencies:** this writes the
 format, it does not import the protocol.
+
+**That sentence was false for five commits.** The first emitter invented a
+profile name and a subject kind, and the claim that the verifier "reads" these
+bundles had never once been run. When it was, it failed. Five drafts later it
+passes, and what the verifier demanded is now pinned as a test here, because
+every one of its demands was a better rule than mine:
+
+- **one scope per check**, so a summary path can always say which check it means
+- **every evidence file is read by a check**; a file that is merely listed and
+  hashed is refused
+- **every summary field is recomputed by some check**; the floor is now
+  `max(coverage)` over the probe rows rather than a number I wrote down
+
+It uses the verifier's generic `rows-aggregate-v1` profile: the issuer supplies
+rows and a recipe from a closed op set, and the verifier re-earns every declared
+number from the rows.
 
 ```python
 from deadcheck import certify
@@ -508,6 +524,26 @@ labelled clean for a different class. It made a correctly written checkpoint
 look noisy and cost that class its coverage. **A clean base has to be clean of
 every class, not only the one it is the twin of.**
 
+## Attacked with the other tools
+
+After the probe rounds, four tools from the same fleet were pointed at this
+one. The results are the reason each exists.
+
+| tool | what it asked | result |
+|---|---|---|
+| `vac-verify` | does the real verifier accept the bundle? | **FAIL ×4, then PASS.** See above. |
+| `evalmut` | do the checkpoints false-alarm on cosmetic changes to clean text? | **27/27 caught**, once the contract was declared honestly |
+| `readme-test-count` | does the README's test count agree with the suite? | **FAIL**: "137 passed" in a code block is not a count it recognises. Fixed, and adopted in CI. |
+| `deadgate` | can any CI gate here fail? | 0 findings. It did not flag the labelled `continue-on-error` step, which may be a gap in its catalog rather than here. |
+
+The evalmut run is its own lesson. Declared with `content_required=True` it
+reported **18 vacuous holes**: every checkpoint passed a blank reply. But a
+deadcheck checkpoint is an *absence* grader, and evalmut's own docs say a blank
+is legitimately clean for one of those. Declared honestly, those probes decline,
+and the `tolerates` contract unlocks the operators that matter: whitespace,
+casing and a trailing disclaimer added to clean text must not fire a
+checkpoint. None did.
+
 ## How this was debugged
 
 Tests passed. So "debugged" meant something else: for each layer, construct an
@@ -568,10 +604,7 @@ that client's written permission.**
 
 ## Status
 
-Early. The assay and the flip analysis are real and tested; the specimen
+**138 tests.** Early. The assay and the flip analysis are real and tested; the specimen
 material is hand-written, which is the honest bottleneck. Ground truth does not
 parallelize.
 
-```
-137 passed
-```

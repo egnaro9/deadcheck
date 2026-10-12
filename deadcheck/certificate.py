@@ -38,9 +38,32 @@ from .power import power as _power
 from .model import AssayError, Rubric, SpecimenSet
 
 VAC_VERSION = "0.2"
-PROFILE = "deadcheck-assay-v1"
-ARTIFACT = "assay.json"          # scope is derived from this filename
-SCOPE = ARTIFACT.split(".")[0]   # keep the two from drifting
+# SPEC.md 3.7: "the profile an issuer can use without being us". The issuer
+# supplies rows and a recipe from a closed op set, and the verifier recomputes
+# every declared number. The first draft invented a profile name and the real
+# verifier rejected it; the claim that it "reads" these bundles had never been
+# run.
+PROFILE = "rows-aggregate-v1"
+ARTIFACT = "assay.json"          # the full record; every projection derives from it
+# VAC binds ONE scope per artifact, and the real verifier refused two checks
+# sharing 'assay'. So the two row sets are emitted as projections of the full
+# record, each the artifact of its own check with its own scope. My verifiers
+# confirm each projection is byte-derivable from assay.json, so the split
+# cannot be used to make the headline disagree with the record.
+# filename -> path into assay.json. The full record is itself a check's
+# artifact (rows_key "classes"), so it is READ, not merely listed: the real
+# verifier refused a bundle whose evidence included a file no check read.
+PROJECTIONS = {"checkpoints.json": ("checkpoints",),
+               "probes.json": ("calibration", "probes")}
+SCOPES = ("assay",) + tuple(f.split(".")[0] for f in PROJECTIONS)
+SCOPE = SCOPES[0]
+
+
+def _project(aj: dict, path: tuple[str, ...]):
+    node = aj
+    for k in path:
+        node = node[k]
+    return node
 
 _CONTROL_POLICY = (
     "the specimen set is calibrated before any rubric is scored against it: a "
@@ -147,7 +170,8 @@ def assay_json(rubric: Rubric, specimens: SpecimenSet, assay: Assay,
                    "max_false_alarm_rate": assay.policy.max_false_alarm_rate},
         "classes": [
             {"defect_class": c.defect_class, "n_specimens": c.n_specimens,
-             "covered": c.covered, "claimed": c.claimed,
+             "covered": c.covered, "covered_n": int(c.covered),
+             "uncovered_n": int(not c.covered), "claimed": c.claimed,
              "best_separation": round(c.best_separation, 4),
              "best_hits": c.best_hits,
              "covering_checkpoints": list(c.covering_checkpoints)}
@@ -158,7 +182,8 @@ def assay_json(rubric: Rubric, specimens: SpecimenSet, assay: Assay,
              "false_alarms": [c.fired_on_clean, c.n_clean],
              "off_target": [c.fired_on_other, c.n_other],
              "separation": round(c.separation, 4),
-             "decoration": c.is_decoration, "untested": c.untested}
+             "decoration": c.is_decoration, "decoration_n": int(c.is_decoration),
+             "untested": c.untested}
             for c in assay.checkpoints],
         "residual": list(assay.residual),
         "undeclared_classes": list(assay.undeclared_classes),
@@ -227,6 +252,13 @@ def vac_manifest(out_dir: pathlib.Path, repo: pathlib.Path,
 
     coverage = recomputed["covered"] / recomputed["classes"] if recomputed["classes"] else 0.0
     commit, pinned = _issuer_commit(repo)
+    for fname, path in PROJECTIONS.items():
+        got = json.loads((out_dir / fname).read_text())
+        if got != _project(aj, path):
+            raise AssayError(
+                f"{fname} is not {'.'.join(path)} of {ARTIFACT}. A projection "
+                "that drifts from the record lets the headline disagree with "
+                "the evidence.")
     headline = (f"{recomputed['covered']}/{recomputed['classes']} defect "
                 f"classes caught, floor {cal['floor']:.0%}, earned "
                 f"{(coverage - cal['floor']) / (1 - cal['floor']):.0%}"
@@ -262,7 +294,9 @@ def vac_manifest(out_dir: pathlib.Path, repo: pathlib.Path,
                     "the replay below checks out a tag"]),
             ],
         },
-        "subject": {"kind": "rubric", "id": aj["rubric_id"],
+        # "suite-archetype" is the nearer of the two kinds the verifier allows;
+        # a rubric is a suite of checkpoints, not an agent.
+        "subject": {"kind": "suite-archetype", "id": aj["rubric_id"],
                     "version": {"material_sha": aj["material_sha"],
                                 "specimen_set": aj["specimen_set_id"]}},
         "protocol": {
@@ -282,12 +316,30 @@ def vac_manifest(out_dir: pathlib.Path, repo: pathlib.Path,
             for p in sorted(out_dir.rglob("*"))
             if p.is_file() and p.relative_to(out_dir).as_posix() != "vac.json"],
         "results": {
-            "summary": {SCOPE: {**recomputed,
-                                "floor_pct": round(cal["floor"] * 100),
-                                "difficulty_pct": round(cal["difficulty"] * 100)}},
-            "checks": [{"profile": PROFILE, "artifact": ARTIFACT,
-                        "render": "CERTIFICATE.md",
-                        "expect": dict(recomputed)}],
+            # Every summary number is recomputed by exactly one check, including
+            # the floor, which is max(coverage) over the probe rows. The real
+            # verifier refused summary fields no check could re-earn, which is
+            # the right rule and now this emitter's rule too.
+            "summary": {
+                "assay": {k: recomputed[k] for k in ("classes", "covered", "residual")},
+                "checkpoints": {k: recomputed[k] for k in ("checkpoints", "decoration")},
+                "probes": {"floor": round(cal["floor"], 4)},
+            },
+            "checks": [
+                {"profile": PROFILE, "artifact": ARTIFACT, "rows_key": "classes",
+                 "render": "CERTIFICATE.md",
+                 "recompute": {"classes": {"op": "count"},
+                               "covered": {"op": "sum", "field": "covered_n"},
+                               "residual": {"op": "sum", "field": "uncovered_n"}},
+                 "expect": {k: recomputed[k] for k in ("classes", "covered", "residual")}},
+                {"profile": PROFILE, "artifact": "checkpoints.json",
+                 "recompute": {"checkpoints": {"op": "count"},
+                               "decoration": {"op": "sum", "field": "decoration_n"}},
+                 "expect": {k: recomputed[k] for k in ("checkpoints", "decoration")}},
+                {"profile": PROFILE, "artifact": "probes.json",
+                 "recompute": {"floor": {"op": "max", "field": "coverage", "round": 4}},
+                 "expect": {"floor": round(cal["floor"], 4)}},
+            ],
         },
         "replay": {
             "issuer_commit": commit,
@@ -340,6 +392,8 @@ def certify(out_dir: pathlib.Path, rubric: Rubric, specimens: SpecimenSet,
     out_dir.mkdir(parents=True, exist_ok=True)
     aj = assay_json(rubric, specimens, assay, cal, attack, agreements)
     (out_dir / ARTIFACT).write_text(json.dumps(aj, indent=1, sort_keys=True) + "\n")
+    for fname, path in PROJECTIONS.items():
+        (out_dir / fname).write_text(json.dumps(_project(aj, path), indent=1, sort_keys=True) + "\n")
     (out_dir / "CERTIFICATE.md").write_text(render(aj))
     man = vac_manifest(out_dir, repo, issuer)
     (out_dir / "vac.json").write_text(json.dumps(man, indent=1) + "\n")
