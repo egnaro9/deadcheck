@@ -1,4 +1,4 @@
-"""rubric-assay: measure what a rubric can and cannot see.
+"""deadcheck: measure what a rubric can and cannot see.
 
 Everything here is stdlib-only and deterministic. There is no model in the loop,
 so the same rubric and the same specimens always produce the same three numbers:

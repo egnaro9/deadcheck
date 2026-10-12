@@ -15,7 +15,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from rubric_assay import (AssayError, Checkpoint, CoveragePolicy, Rubric,
+from deadcheck import (AssayError, Checkpoint, CoveragePolicy, Rubric,
                           Specimen, SpecimenSet, defect_classes, markdown, run)
 
 ROT = "rot"
@@ -167,7 +167,7 @@ def test_the_report_always_prints_a_residual_section():
 
 # --------------------------------------------------------- what flips it
 
-from rubric_assay import at_most, blocking, no_checkpoint_fired, what_flips
+from deadcheck import at_most, blocking, no_checkpoint_fired, what_flips
 
 
 def test_a_verdict_resting_on_one_checkpoint_is_named():

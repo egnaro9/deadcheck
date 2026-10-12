@@ -1,4 +1,4 @@
-# rubric-assay
+# deadcheck
 
 **Measure what a rubric can and cannot see.** Bring an eval suite; get back three
 numbers and the row everyone else leaves out.
@@ -10,6 +10,18 @@ score is a disagreement about a predicate.
 ```
 python examples/flight_rubric.py
 ```
+
+## The name
+
+[deadgate](https://github.com/egnaro9/deadgate) finds CI checks that cannot fail:
+a required check satisfied by a skipped job, an exit status swallowed by a pipe.
+deadcheck is the same question one layer up. A rubric checkpoint that says the
+same thing about good and bad work is a check that cannot fail, and it passes
+review for the same reason the CI ones do, which is that nobody ever asked it to
+prove it could go red.
+
+The report calls those checkpoints **decoration** and tells you to cut them. The
+rest of the tool is about what remains.
 
 ## Why
 
@@ -61,7 +73,7 @@ a rule for turning checkpoint outcomes into a verdict, which checkpoints would
 have to be wrong for the verdict to reverse?
 
 ```python
-from rubric_assay import blocking, what_flips
+from deadcheck import blocking, what_flips
 
 rep = what_flips(rubric, specimen, blocking("cp_complied_after_declining"))
 rep.hangs_on_one   # the verdict rests on a single predicate

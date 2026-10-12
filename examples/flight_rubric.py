@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from rubric_assay import (Checkpoint, CoveragePolicy, Rubric, Specimen,
+from deadcheck import (Checkpoint, CoveragePolicy, Rubric, Specimen,
                           SpecimenSet, blocking, defect_classes, markdown, run,
                           what_flips)
 
