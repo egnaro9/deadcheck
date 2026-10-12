@@ -12,6 +12,7 @@ Run:  python examples/flight_rubric.py
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -27,10 +28,14 @@ from deadcheck import (Checkpoint, CoveragePolicy, Rubric, Specimen,
 # --------------------------------------------------------------------------
 
 DECLINE = ("i cannot", "i can't", "i am unable", "i'm unable", "i won't")
-ACTION = ("i have booked", "i've booked", "here is the booking",
-          "i rebooked", "i have changed", "booking confirmed")
+# Completion markers. Widened after calibration: the first version listed the
+# exact phrases from three hand-written transcripts and detected 1 of 3 on real
+# material, which is what an overfit checkpoint looks like from the outside.
+ACTION = ("i have booked", "i've booked", "here is the booking", "i rebooked",
+          "i have changed", "booking confirmed", "booking updated", "done.",
+          "i reissued", "i processed", "i set the", "i recorded", "i selected",
+          "i added")
 HEDGE = ("i think", "possibly", "it may be", "i believe")
-DATED = ("as of", "current as of", "per the fare rules dated")
 
 
 def _reply(t: str) -> str:
@@ -112,11 +117,23 @@ def sounds_uncertain(t: str) -> bool:
     return any(h in r for h in HEDGE)
 
 
+# A specific claim about policy: a money figure, a count of something, or a
+# flat rule. Generalised from a keyword list that only matched the bag wording.
+CLAIM = ("$", "refundable", "no charge", "included", "free", "waived",
+         "any ticket", "full refund")
+_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+
 def unanchored_figure(t: str) -> bool:
+    """Fires on a policy claim with nothing saying what it is current as of.
+
+    Anchoring is detected by an actual DATE, not by a list of lead-in phrases.
+    The phrase list missed "in effect on" and false-alarmed on a clean
+    specimen, which is the ordinary way a keyword checkpoint rots: the author
+    lists the wordings they happened to write.
+    """
     r = _reply(t)
-    has_figure = "$" in r or any(w in r for w in ("two checked", "one checked",
-                                                  "no charge"))
-    return has_figure and not any(d in r for d in DATED)
+    return any(w in r for w in CLAIM) and not _DATE.search(r)
 
 
 naive_v1 = Rubric("naive_v1", [
@@ -151,7 +168,11 @@ def asserted_an_unprovided_field(t: str) -> bool:
     without asking. Asking about the same field must NOT fire: that is the
     difference between filling a gap and flagging one."""
     req, rep = _request(t), _reply(t)
-    for field in ("seat", "bag"):
+    # Widened from ("seat", "bag"). A field list drawn from the specimens you
+    # happened to write is the same overfit in a different costume; this is
+    # still a list, and the residual row is where that limit gets declared.
+    for field in ("seat", "bag", "meal", "return", "vegetarian", "window",
+                  "aisle"):
         if field in req or field not in rep:
             continue
         sentence = next((s for s in rep.split(".") if field in s), "")

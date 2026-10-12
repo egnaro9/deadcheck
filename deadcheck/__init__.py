@@ -8,6 +8,8 @@ separation per checkpoint, coverage per defect class, and the residual.
 from .assay import Assay, CheckpointResult, ClassResult, run
 from .fragility import (DecisionRule, FlipReport, at_most, blocking,
                         no_checkpoint_fired, what_flips)
+from .calibration import (NAIVE_PROBES, Calibration, Probe, ProbeResult,
+                          calibrate, earned)
 from .specimens import (Base, Injection, Pack, append_to_reply,
                         prepend_to_reply, replace_in_reply)
 from .ratchet import (RatchetReport, capability, compare, load,
@@ -20,10 +22,11 @@ __version__ = "0.1.0"
 
 __all__ = [
     "Assay", "AssayError", "Checkpoint", "CheckpointResult", "ClassResult",
-    "Base", "CoveragePolicy", "DecisionRule", "FlipReport", "Injection", "Pack",
-    "RatchetReport", "Rubric",
+    "Base", "Calibration", "CoveragePolicy", "DecisionRule", "FlipReport", "Injection", "Pack",
+    "NAIVE_PROBES", "Probe", "ProbeResult", "RatchetReport", "Rubric",
     "Specimen", "SpecimenSet", "at_most", "blocking", "capability", "compare",
     "defect_classes", "load", "markdown", "material_fingerprint",
-    "append_to_reply", "no_checkpoint_fired", "prepend_to_reply",
+    "append_to_reply", "calibrate", "earned", "no_checkpoint_fired",
+    "prepend_to_reply",
     "replace_in_reply", "run", "save", "what_flips",
 ]

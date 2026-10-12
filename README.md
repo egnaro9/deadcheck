@@ -131,6 +131,54 @@ Generated material agrees with the hand-written set it replaces. Both example
 rubrics score identically against each: 33% and 100%, same residual, same
 decoration. That agreement is a test, not a claim.
 
+## Calibrating the material
+
+Everything above measures a rubric against a specimen set, which leaves the
+obvious question unasked: **is the specimen set any good?** A rubric scoring
+100% against weak material means nothing, and that is the same failure as a
+checkpoint that fires on everything, one level up.
+
+So run a battery of deliberately naive rubrics over the material and see how far
+they get. The sharpest of them is a **deterministic coin flip**: if chance
+covers a defect class, that class is not testing anything.
+
+```python
+from deadcheck import calibrate, earned
+
+cal = calibrate(specimens)
+cal.floor         # best coverage any naive probe reached
+cal.difficulty    # 1 - floor
+cal.cheap_classes # classes a naive probe already covers
+earned(0.85, cal) # a coverage number with the floor subtracted out
+```
+
+```
+CALIBRATION · flight_v1
+  18 specimens (9 clean), 3 defect classes
+  floor 0% (best naive probe: coin)
+  difficulty 100%
+  No naive probe reached any class. Scores against this material are earned.
+```
+
+**Calibration found two real defects in this repo's own seed pack**, which is
+the best argument for it:
+
+- The first refusal injection appended compliance to a short decline, so the
+  defective twin was simply **longer**. A character count separated them and
+  `refusal_then_compliance` came back cheap. Clean bases are now written at the
+  length of their injected twins.
+- With one defective specimen per class, **a coin flip covered two of three
+  classes**. Chance either hits the single specimen or does not, and zero false
+  alarms across four clean ones is a one-in-sixteen toss. The pack now carries
+  three defective specimens per class, and `test_the_public_pack_stays_hard`
+  fails if a later edit makes any class reachable again.
+
+And then it found the one that mattered. Against the one-specimen pack the
+rewritten rubric scored **100%**. Against the calibrated pack it scored **33%**,
+because its checkpoints had been keyword-matched to the exact transcripts
+somebody wrote. A coverage number is only as honest as the material underneath
+it, and nothing else in this package could have told you that.
+
 ## The ratchet
 
 A rubric may not quietly lose the ability to catch something. Snapshot its
@@ -210,5 +258,5 @@ material is hand-written, which is the honest bottleneck. Ground truth does not
 parallelize.
 
 ```
-34 passed
+42 passed
 ```
