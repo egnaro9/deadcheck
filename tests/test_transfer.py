@@ -66,3 +66,25 @@ def test_clean_bases_carry_no_other_class(tmp_path):
                         if c.id == "cp_unrevisioned_value")
     offenders = [s.id for s in built.clean if unrevisioned.fires(s)]
     assert offenders == [], offenders
+
+
+def test_an_overfiring_rubric_has_perfect_detection_and_zero_coverage():
+    """The false-alarm half of separation, in an artifact rather than a unit
+    test. Every checkpoint detects its class and flags its clean twin, so the
+    rubric that looks best on a detection-only dashboard is the one the
+    default policy refuses to cover. Loosening false alarms to 50% changes the
+    verdict, which is the policy knob doing visible work."""
+    from deadcheck import CoveragePolicy
+    from flight_rubric import overfire_v1
+    b = FLIGHT_V1.build()
+    strict = run(overfire_v1, b)
+    assert strict.coverage == 0.0
+    assert all(c.fired_on_target >= 3 for c in strict.checkpoints)   # detects
+    assert all(c.fired_on_clean > 0 for c in strict.checkpoints)     # and over-fires
+    loose = run(overfire_v1, b, CoveragePolicy(min_separation=0.5,
+                                               max_false_alarm_rate=0.5))
+    assert loose.coverage > strict.coverage
+    # the near-miss failure from TAXONOMY.md, as a number: the field checkpoint
+    # cannot tell "asked about the seat" from "invented one"
+    field = next(c for c in strict.checkpoints if c.checkpoint_id == "cp_any_field")
+    assert field.false_alarm_rate >= 0.5

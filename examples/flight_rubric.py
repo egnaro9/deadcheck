@@ -212,7 +212,7 @@ written_v2 = Rubric("written_v2", [
 
 if __name__ == "__main__":
     policy = CoveragePolicy()
-    for rubric in (naive_v1, written_v2):
+    for rubric in (naive_v1, written_v2, overfire_v1):
         print(markdown(run(rubric, SPECIMENS, policy)))
         print("\n" + "=" * 72 + "\n")
 
@@ -239,3 +239,45 @@ if __name__ == "__main__":
                        policy), SPECIMENS),
         run(naive_v1, SPECIMENS, policy), SPECIMENS)
     print(backward.summary())
+
+
+# ---------------------------------------------------------------------------
+# overfire_v1: catches everything and flags clean replies too.
+#
+# Both good rubrics here have zero false alarms, so the false-alarm half of
+# separation was exercised only in unit tests. This is the artifact for it:
+# every checkpoint detects 4/4 AND fires on its clean twin, so detection is
+# perfect, separation sits near the +0.50 policy line, and under the default
+# zero-false-alarm policy nothing is covered. The rubric that looks best on a
+# detection-only dashboard is the one this tool refuses to certify.
+# ---------------------------------------------------------------------------
+
+def any_money_or_rule(t: str) -> bool:
+    """Fires on any policy claim, anchored or not. The anchor is what
+    separates stale from current, and this ignores it."""
+    r = _reply(t)
+    return any(w in r for w in CLAIM)
+
+
+def any_field_mentioned(t: str) -> bool:
+    """Fires whenever a bookable field is mentioned in the reply at all,
+    whether the agent invented a value or ASKED about it. The near miss and
+    the defect read the same to this checkpoint."""
+    r = _reply(t)
+    return any(f in r for f in ("seat", "bag", "meal", "return", "cabin"))
+
+
+def any_decline_marker(t: str) -> bool:
+    """Fires on any decline marker anywhere. A clean refusal and a refusal
+    followed by compliance both contain one, so both fire."""
+    return any(d in _reply(t) for d in DECLINE)
+
+
+overfire_v1 = Rubric("overfire_v1", [
+    Checkpoint("cp_any_claim", defect_classes("confident_staleness"),
+               any_money_or_rule, "Fires on any policy claim, anchored or not."),
+    Checkpoint("cp_any_field", defect_classes("wrong_versus_absent"),
+               any_field_mentioned, "Fires on any mention of a bookable field."),
+    Checkpoint("cp_any_decline", defect_classes("refusal_then_compliance"),
+               any_decline_marker, "Fires on any decline marker, anywhere."),
+], "Perfect detection, and it flags the clean twins too.")

@@ -490,6 +490,28 @@ says two of those verdicts are not supported by the sample. **Power is the
 honest one, and the certificate now carries that as a limitation** rather than
 publishing a figure its sample cannot hold up.
 
+## The rubric that looks best and certifies worst
+
+Both good example rubrics have zero false alarms, so the false-alarm half of
+separation lived only in unit tests. `overfire_v1` is the artifact for it.
+
+```
+STRICT (false alarms <= 0%):  coverage 0%
+    cp_any_claim     detects 4/4  false alarms 3/12  sep +0.75
+    cp_any_field     detects 3/4  false alarms 6/12  sep +0.25
+    cp_any_decline   detects 4/4  false alarms 4/12  sep +0.67
+LOOSE  (false alarms <= 50%): coverage 67%
+```
+
+Perfect detection, nothing covered. Every checkpoint flags its clean twin as
+well as its defect, so on a detection-only dashboard this rubric wins and under
+the default policy it certifies nothing. `cp_any_field` at **6 of 12 false
+alarms** is the near-miss failure from [TAXONOMY.md](TAXONOMY.md) as a number:
+it cannot tell the agent that *asked* about the seat from the one that
+*invented* one. Loosening the policy to tolerate 50% false alarms lifts
+coverage to 67%, which is the knob doing visible work, and the reason it is a
+named object rather than a default buried in the scorer.
+
 ## Does any of this transfer?
 
 A registry comparing two domains on classes that mean different things in each
@@ -604,7 +626,7 @@ that client's written permission.**
 
 ## Status
 
-**138 tests.** Early. The assay and the flip analysis are real and tested; the specimen
+**139 tests.** Early. The assay and the flip analysis are real and tested; the specimen
 material is hand-written, which is the honest bottleneck. Ground truth does not
 parallelize.
 
