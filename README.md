@@ -222,8 +222,8 @@ specimens = pack.build()       # deterministic, same bytes every time
 pack.fingerprint()             # identity of the definition, not the output
 ```
 
-`packs/flight_v1.py` is the public seed pack: four bases, four injections,
-three defect classes, eight specimens.
+`packs/flight_v1.py` is the public seed pack: twelve bases, twelve injections,
+three defect classes, 24 specimens.
 
 **The failure this refuses.** An injection that does not change the transcript
 produces a specimen labelled defective while being byte-identical to clean
@@ -264,7 +264,7 @@ earned(0.85, cal) # a coverage number with the floor subtracted out
 
 ```
 CALIBRATION · flight_v1
-  18 specimens (9 clean), 3 defect classes
+  24 specimens (12 clean), 3 defect classes
   floor 0% (best naive probe: coin)
   difficulty 100%
   No naive probe reached any class. Scores against this material are earned.
